@@ -19,7 +19,7 @@
 
 // self
 //
-#include    "edhttp/http_strings.h"
+#include    "edhttp/weighted_http_string.h"
 
 
 
@@ -46,224 +46,6 @@
 
 namespace edhttp
 {
-
-
-
-/** \brief The part_t constructor without parameters is for the vector.
- *
- * When initializing a vector, the class has to have a constructor with
- * no parameters. Unfortunate since we would prefer to not allow part_t
- * objects without a name, but mandatory (would have to test again once
- * we convert the class to only use the STL library.)
- */
-weighted_http_string::part_t::part_t()
-{
-}
-
-
-/** \brief Create a named part_t.
- *
- * This function is used to create a valid part_t object.
- *
- * \param[in] name  The name of the part_t object.
- *
- * \sa get_name()
- */
-weighted_http_string::part_t::part_t(std::string const & name)
-    : f_name(name)
-{
-}
-
-
-/** \brief Retrieve the part_t name.
- *
- * The name of a part_t object cannot be changed once it was created.
- *
- * You may retrieve the name with this function, though.
- *
- * \bug
- * It is currently possible to create a part_t object without a name
- * so the class works with QVector.
- *
- * \return The name as passed in when create the part_t object.
- */
-std::string const & weighted_http_string::part_t::get_name() const
-{
-    return f_name;
-}
-
-
-/** \brief Retrieve the value of this part.
- *
- * By default, a part is not expected to include a value, but there
- * are many strings in HTTP headers that accept a syntax where parameters
- * can be given a value. For example, in the Cache-Control field, we
- * can have a "max-age=123" parameter. This function returns the "123".
- * The name ("max-age") is returned by the get_name() function.
- *
- * In a weighted HTTP string such as a string of language definitions,
- * the named value has no value. It is expected to represent a flag
- * which is set (i.e. do not interpret a part with an empty string
- * as "false").
- *
- * \return The value of this part of the string.
- */
-std::string const & weighted_http_string::part_t::get_value() const
-{
-    return f_value;
-}
-
-
-/** \brief This function is used to setup the value of a part.
- *
- * This function defines the value of a part. By default a part is just
- * defined and its value is the empty string (it is still viewed as being
- * "true", but without anything more than that.)
- *
- * The function is called by the parser when it finds a part name followed
- * by an equal sign.
- *
- * \param[in] value  The new value of this part.
- */
-void weighted_http_string::part_t::set_value(std::string const & value)
-{
-    f_value = value;
-}
-
-
-/** \brief Retrieve the level of this part_t object.
- *
- * This function retrieves the level of the part_t object. It is a floating
- * point value.
- *
- * The level is taken from the "q" parameter. For example, in:
- *
- * \code
- *      fr; q=0.3
- * \endcode
- *
- * the level is viewed as 0.3.
- *
- * \return The part_t object level.
- */
-weighted_http_string::part_t::level_t weighted_http_string::part_t::get_level() const
-{
-    return f_level;
-}
-
-
-/** \brief Change the level of this part.
- *
- * This function saves the new \p level parameter in this part_t object.
- * Items without a level (q=<value>) parameter are assigned the special
- * value DEFAULT_LEVEL, which is 1.0.
- *
- * \bug
- * The function does not limit the level. It is expected to be defined
- * between 0.0 and 1.0, though.
- *
- * \param[in] level  The new part_t level.
- */
-void weighted_http_string::part_t::set_level(weighted_http_string::part_t::level_t const level)
-{
-    f_level = level;
-}
-
-
-/** \brief Retrieve the value of a parameter.
- *
- * This function returns the value of a parameter given its name.
- *
- * If the parameter is not exist defined, then the function returns
- * an empty string. A parameter may exist and be set to the empty
- * string. There is no way to know at this point.
- *
- * \param[in] name  The name of the parameter to retrieve.
- *
- * \return The value of the parameter or "" if undefined.
- */
-std::string weighted_http_string::part_t::get_parameter(std::string const & name) const
-{
-    auto const it(f_param.find(name));
-    if(it == f_param.end())
-    {
-        return std::string();
-    }
-    return it->second;
-}
-
-
-/** \brief Add a parameter.
- *
- * This function is used to add a parameter to the part_t object.
- *
- * A parameter has a name and a value.
- *
- * \param[in] name  The name of the parameter to add.
- * \param[in] value  The value of the parameter.
- */
-void weighted_http_string::part_t::add_parameter(std::string const & name, std::string const & value)
-{
-    f_param[name] = value;
-}
-
-
-/** \brief Convert one part back into a weighted HTTP string.
- *
- * This function builds one part of a weighted HTTP string. The string
- * will look something like:
- *
- * \code
- *      es; q=0.8
- * \endcode
- *
- * \return The part converted to one string.
- */
-std::string weighted_http_string::part_t::to_string() const
-{
-    std::string result(f_name);
-
-    for(auto const & it : f_param)
-    {
-        std::string p(it.first);
-        if(!it.second.empty())
-        {
-            p += '=';
-            p += it.second;
-        }
-        result += "; ";
-        result += p;
-    }
-
-    return result;
-}
-
-
-/** \brief Operator used to sort elements.
- *
- * This operator overload is used by the different sort algorithms
- * that we can apply against this type. In most cases, it is a
- * std::stable_sort(),
- *
- * The function compares the level of the two part_t objects involved.
- *
- * Note that we sort from the largest to the smallest level. In other
- * words, if this part_t has level 1.0 and \p rhs has level 0.5, the
- * function returns true (i.e. 1.0 > 0.5).
- *
- * \param[in] rhs  The right hand side part_t object to compare against.
- *
- * \return true if this part_t is considered smaller than \p rhs.
- */
-bool weighted_http_string::part_t::operator < (part_t const & rhs) const
-{
-    return f_level > rhs.f_level;
-}
-
-
-
-
-
 
 
 
@@ -332,12 +114,12 @@ weighted_http_string::weighted_http_string(std::string const & str)
  * If you want to sort by level, make sure to retrieve the vector with
  * get_parts() and then sort it with sort_by_level().
  *
- * Remember that by default a part_t object uses the DEFAULT_LEVEL which
+ * Remember that by default a string_part object uses the DEFAULT_LEVEL which
  * is 1.0. In other words, objects with no `q=...` parameter will likely
  * become first in the list.
  *
  * \code
- *      http_strings::weighted_http_string language_country(locales);
+ *      edhttp::weighted_http_string language_country(locales);
  *      language_country.sort_by_level();
  * \endcode
  *
@@ -424,7 +206,7 @@ bool weighted_http_string::parse(std::string const & str, bool reset)
         }
         // TODO: we want to check that `name` validity (i.e. 8ALPHA)
         //
-        part_t part(name);
+        string_part part(name);
 
         // we allow spaces after the name and before the ';', '=', and ','
         //
@@ -645,7 +427,7 @@ bool weighted_http_string::parse(std::string const & str, bool reset)
  *
  * \return The part level or UNDEFINED_LEVEL.
  */
-weighted_http_string::part_t::level_t weighted_http_string::get_level(std::string const & name)
+string_part::level_t weighted_http_string::get_level(std::string const & name)
 {
     const int max_parts(f_parts.size());
     for(int i(0); i < max_parts; ++i)
@@ -655,7 +437,7 @@ weighted_http_string::part_t::level_t weighted_http_string::get_level(std::strin
             return f_parts[i].get_level();
         }
     }
-    return part_t::UNDEFINED_LEVEL();
+    return string_part::UNDEFINED_LEVEL();
 }
 
 
@@ -678,7 +460,7 @@ void weighted_http_string::sort_by_level()
  *
  * This function converts all the parts of a weighted HTTP string
  * object to one string. The string representing each part is
- * generated using the part_t::to_string() function.
+ * generated using the string_part::to_string() function.
  *
  * \return The string representing this weighted HTTP string.
  */

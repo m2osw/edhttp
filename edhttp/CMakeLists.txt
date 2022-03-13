@@ -28,11 +28,12 @@ add_library(${PROJECT_NAME} SHARED
     http_client_server.cpp
     http_cookie.cpp
     http_date.cpp
-    http_strings.cpp
     mkgmtime.c
     quoted_printable.cpp
+    string_part.cpp
     uri.cpp
     version.cpp
+    weighted_http_string.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -42,6 +43,10 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
+        ${ADVGETOPT_LIBRARIES}
+        ${EVENTDISPATCHER_LIBRARIES}
+        ${LIBEXCEPT_LIBRARIES}
+        ${LIBTLD_LIBRARIES}
         ${SNAPLOGGER_LIBRARIES}
 )
 

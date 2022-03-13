@@ -25,6 +25,7 @@ find_package(AdvGetOpt        REQUIRED)
 find_package(EventDispatcher  REQUIRED)
 find_package(LibAddr          REQUIRED)
 find_package(LibExcept        REQUIRED)
+find_package(LibTLD           REQUIRED)
 find_package(SnapCMakeModules REQUIRED)
 find_package(SnapDev          REQUIRED)
 find_package(SnapLogger       REQUIRED)
@@ -45,6 +46,7 @@ include_directories(
 ## Compiling
 ##
 add_subdirectory(edhttp)            # Library
+add_subdirectory(tests)             # Tests
 add_subdirectory(cmake)             # CMake Config
 add_subdirectory(doc)               # Documentation
 

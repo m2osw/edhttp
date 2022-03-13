@@ -37,13 +37,6 @@
 #include    <snapdev/tokenize_string.h>
 
 
-// QtSerialization
-//
-//#include <QtSerialization/QSerializationComposite.h>
-//#include <QtSerialization/QSerializationFieldBasicTypes.h>
-//#include <QtSerialization/QSerializationFieldString.h>
-
-
 // libaddr
 //
 #include    <libaddr/addr_parser.h>
