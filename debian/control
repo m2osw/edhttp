@@ -1,0 +1,42 @@
+Source: edhttp
+Priority: extra
+Maintainer: Alexis Wilke <alexis@m2osw.com>
+Build-Depends: cmake,
+    cppthread-dev (>= 1.0.0.0~bionic),
+    debhelper,
+    doxygen,
+    graphviz,
+    snapcatch2 (>= 2.9.1.0~bionic),
+    snapcmakemodules (>= 1.0.49.0~bionic),
+    snapdev (>= 1.1.3.0~bionic),
+    snaplogger-dev (>= 1.0.0.0~bionic)
+Standards-Version: 3.9.4
+Section: utils
+Homepage: https://snapwebsites.org/
+Vcs-Git: https://github.com/m2osw/snapcpp.git
+Vcs-Browser: https://github.com/m2osw/sitter
+
+Package: edhttp-doc
+Section: doc
+Architecture: all
+Depends: ${misc:Depends}
+Description: Documentation for the C++ Event Dispathcer library.
+ This package allows other projects to make use of HTTP clients and servers.
+
+Package: edhttp
+Section: utils
+Architecture: any
+Suggests: edhttp-doc
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Development package for the C++ Event Dispatcher library.
+ This package allows other projects to make use of HTTP clients and servers.
+
+Package: edhttp-dev
+Section: libdevel
+Architecture: any
+Depends: edhttp (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Description: Development package for the C++ Event Dispatcher library.
+ This package allows you to very quickly create HTTP clients and servers
+ without the need for tools such as curl, apache, nginx, etc.
+
+# vim: ts=4 sw=4 et
