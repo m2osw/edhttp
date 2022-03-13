@@ -28,6 +28,7 @@ add_library(${PROJECT_NAME} SHARED
     http_client_server.cpp
     http_cookie.cpp
     http_date.cpp
+    mime_type.cpp
     mkgmtime.c
     quoted_printable.cpp
     string_part.cpp
@@ -39,6 +40,7 @@ add_library(${PROJECT_NAME} SHARED
 target_include_directories(${PROJECT_NAME}
     PUBLIC
         ${SNAPDEV_INCLUDE_DIR}
+        ${MAGIC_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -48,6 +50,7 @@ target_link_libraries(${PROJECT_NAME}
         ${LIBEXCEPT_LIBRARIES}
         ${LIBTLD_LIBRARIES}
         ${SNAPLOGGER_LIBRARIES}
+        ${MAGIC_LIBRARIES}
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

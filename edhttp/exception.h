@@ -49,6 +49,8 @@ DECLARE_EXCEPTION(edhttp_exception, client_request_mixed_port_or_hostname);
 DECLARE_EXCEPTION(edhttp_exception, client_no_addresses);
 DECLARE_EXCEPTION(edhttp_exception, client_io_error);
 
+DECLARE_EXCEPTION(edhttp_exception, mime_type_no_magic);
+
 
 
 } // namespace edhttp
