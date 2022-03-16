@@ -30,7 +30,7 @@ namespace edhttp
 
 DECLARE_LOGIC_ERROR(edhttp_client_server_logic_error);
 
-DECLARE_OUT_OF_RANGE(edhttp_uri_exception_out_of_bounds);
+DECLARE_OUT_OF_RANGE(edhttp_uri_exception_out_of_range);
 
 DECLARE_MAIN_EXCEPTION(edhttp_exception);
 

@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-project(edhttp)
-
 AtomicNames("names.an")
+
+project(edhttp)
 
 # Put the version in the header file
 configure_file(
@@ -32,7 +32,7 @@ add_library(${PROJECT_NAME} SHARED
     http_date.cpp
     mime_type.cpp
     mkgmtime.c
-    names.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
     quoted_printable.cpp
     string_part.cpp
     uri.cpp
@@ -81,6 +81,14 @@ install(
 
     FILES_MATCHING PATTERN
         "*.h"
+)
+
+install(
+    FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/names.h
+
+    DESTINATION
+        include/edhttp
 )
 
 install(

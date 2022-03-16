@@ -37,7 +37,7 @@ namespace edhttp
 
 
 
-std::string encode(std::string const & input, int flags)
+std::string quoted_printable_encode(std::string const & input, int flags)
 {
     class result
     {
@@ -260,7 +260,7 @@ std::string encode(std::string const & input, int flags)
 }
 
 
-std::string decode(std::string const & input)
+std::string quoted_printable_decode(std::string const & input)
 {
     class result
     {
