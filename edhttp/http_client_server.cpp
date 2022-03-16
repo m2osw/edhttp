@@ -321,7 +321,11 @@ std::string http_request::get_request(bool keep_alive) const
     // forcing the type? (generally doing so with POSTs)
     if(!content_type.empty())
     {
-        request << g_name_edhttp_fiekd_content_type << ": " << content_type << "\r\n";
+        request
+            << g_name_edhttp_field_content_type
+            << ": "
+            << content_type
+            << "\r\n";
     }
     if(!found_user_agent)
     {
