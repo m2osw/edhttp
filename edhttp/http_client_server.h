@@ -60,6 +60,7 @@ public:
     std::string     get_host() const;
     bool            unique_port() const;
     int             get_port() const;
+    std::string     get_agent_name() const;
     std::string     get_command() const;
     std::string     get_path() const;
     std::string     get_header(std::string const & name) const;
@@ -71,6 +72,7 @@ public:
     void            set_address_ranges(addr::addr_range::vector_t const & address_ranges);
     void            set_host(std::string const & host);
     void            set_port(int port);
+    void            set_agent_name(std::string const & agent_name);
     void            set_command(std::string const & command);
     void            set_path(std::string const & path);
     void            set_header(std::string const & name, std::string const & value);
@@ -83,6 +85,7 @@ private:
     //std::string                 f_host = std::string();
     //int32_t                     f_port = -1;
     addr::addr_range::vector_t  f_address_ranges = addr::addr_range::vector_t();
+    std::string                 f_agent_name = std::string("edhttp");
     std::string                 f_command = std::string();
     std::string                 f_path = std::string();
     header_t                    f_headers = header_t();

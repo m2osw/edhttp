@@ -2221,40 +2221,40 @@ std::string uri::urldecode(std::string const & in, bool relax)
  */
 int uri::protocol_to_port(std::string const & protocol)
 {
-    if(protocol == "http") // 99% so put it first
+    if(protocol == g_name_edhttp_protocol_http) // 99% so put it first
     {
         return 80;
     }
-    if(protocol == "https") // 0.9% so put it next
+    if(protocol == g_name_edhttp_protocol_https) // 0.9% so put it next
     {
         return 443;
     }
-    if(protocol == "ftp")
+    if(protocol == g_name_edhttp_protocol_ftp)
     {
         return 21;
     }
-    if(protocol == "ssh")
+    if(protocol == g_name_edhttp_protocol_ssh)
     {
         return 22;
     }
-    if(protocol == "telnet")
+    if(protocol == g_name_edhttp_protocol_telnet)
     {
         return 23;
     }
-    if(protocol == "smtp")
+    if(protocol == g_name_edhttp_protocol_smtp)
     {
         return 25;
     }
-    if(protocol == "gopher")
+    if(protocol == g_name_edhttp_protocol_gopher)
     {
         return 70;
     }
 
     // not a common service, ask the system... (probably less than 0.01%)
-    servent * s(getservbyname(protocol.c_str(), "tcp"));
+    servent * s(getservbyname(protocol.c_str(), g_name_edhttp_protocol_tcp));
     if(s == nullptr)
     {
-        s = getservbyname(protocol.c_str(), "udp");
+        s = getservbyname(protocol.c_str(), g_name_edhttp_protocol_udp);
         if(s == nullptr)
         {
             // we don't know...

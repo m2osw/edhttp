@@ -24,6 +24,7 @@
 #include    "edhttp/exception.h"
 #include    "edhttp/http_date.h"
 #include    "edhttp/mkgmtime.h"
+#include    "edhttp/names.h"
 
 
 // snapdev
@@ -780,7 +781,8 @@ std::string const & http_cookie::get_comment_uri() const
 std::string http_cookie::to_http_header() const
 {
     // Note: the name was already checked for invalid characters
-    std::string result("Set-Cookie: ");
+    std::string result(g_name_edhttp_field_set_cookie);
+    result += ": ";
     result += f_name;
     result += '=';
 
@@ -809,7 +811,9 @@ std::string http_cookie::to_http_header() const
         // HTTP format generates: Sun, 06 Nov 1994 08:49:37 GMT
         // (see http://tools.ietf.org/html/rfc2616#section-3.3.1)
         //
-        result += "; Expires=";
+        result += "; ";
+        result += g_name_edhttp_param_expires;
+        result += '=';
         result += date_to_string(f_expire, date_format_t::DATE_FORMAT_HTTP);
 
         // Modern browsers are expected to use the Max-Age=... field
@@ -826,7 +830,9 @@ std::string http_cookie::to_http_header() const
             time_t const max_age(f_expire - time(nullptr));
             if(max_age > 0)
             {
-                result += "; Max-Age=";
+                result += "; ";
+                result += g_name_edhttp_param_max_age;
+                result += '=';
                 result += std::to_string(max_age);
             }
         }
@@ -838,7 +844,10 @@ std::string http_cookie::to_http_header() const
 
     case http_cookie_type_t::HTTP_COOKIE_TYPE_DELETE:
         // no need to waste time computing that date
-        result += "; Expires=Thu, 01-Jan-1970 00:00:01 GMT";
+        result += "; ";
+        result += g_name_edhttp_param_expires;
+        result += '=';
+        result += g_name_edhttp_jan1_1970;
         break;
 
     }
@@ -846,29 +855,39 @@ std::string http_cookie::to_http_header() const
     if(!f_domain.empty())
     {
         // the domain sanity was already checked so we can save it as it here
-        result += "; Domain=" + f_domain;
+        result += "; ";
+        result += g_name_edhttp_param_domain;
+        result += '=';
+        result += f_domain;
     }
 
     if(!f_path.empty())
     {
         // the path sanity was already checked so we can save it as it here
-        result += "; Path=" + f_path;
+        result += "; ";
+        result += g_name_edhttp_param_path;
+        result += '=';
+        result += f_path;
     }
 
     if(f_secure)
     {
-        result += "; Secure";
+        result += "; ";
+        result += g_name_edhttp_param_secure;
     }
 
     if(f_http_only)
     {
-        result += "; HttpOnly";
+        result += "; ";
+        result += g_name_edhttp_param_http_only;
     }
 
     if(!f_comment.empty())
     {
         // we need to escape all "bad" characters, not just quotes
-        result += "; Comment=\"";
+        result += "; ";
+        result += g_name_edhttp_param_comment;
+        result += "=\"";
         safe_comment(result, f_comment);
         result += '"';
     }
@@ -876,7 +895,9 @@ std::string http_cookie::to_http_header() const
     if(!f_comment_uri.empty())
     {
         // we need to escape all "bad" characters, not just quotes
-        result += "; CommentURL=\"";
+        result += "; ";
+        result += g_name_edhttp_param_comment_url;
+        result += "=\"";
         safe_comment(result, f_comment_uri);
         result += '"';
     }

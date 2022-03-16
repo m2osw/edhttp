@@ -21,6 +21,7 @@
 //
 #include    "edhttp/http_client_server.h"
 
+#include    "edhttp/names.h"
 #include    "edhttp/uri.h"
 #include    "edhttp/version.h"
 
@@ -179,6 +180,12 @@ int http_request::get_port() const
 }
 
 
+std::string http_request::get_agent_name() const
+{
+    return f_agent_name;
+}
+
+
 void http_request::set_address_ranges(addr::addr_range::vector_t const & address_ranges)
 {
     f_address_ranges = address_ranges;
@@ -237,8 +244,8 @@ std::string http_request::get_request(bool keep_alive) const
 
     if(f_has_attachment)
     {
-        request << (f_command.empty() ? "POST" : f_command.c_str())
-                << " " << f_path << " HTTP/1.1\r\n";
+        request << (f_command.empty() ? g_name_edhttp_method_post : f_command.c_str())
+                << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
 
         throw edhttp_client_server_logic_error("http_client_server.cpp:get_request(): attachments not supported yet");
     }
@@ -246,8 +253,8 @@ std::string http_request::get_request(bool keep_alive) const
     {
         // TODO: support the case where the post variables are passed using
         //       a GET and a query string
-        request << (f_command.empty() ? "POST" : f_command.c_str())
-                << " " << f_path << " HTTP/1.1\r\n";
+        request << (f_command.empty() ? g_name_edhttp_method_post : f_command.c_str())
+                << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         content_type = "application/x-www-form-urlencoded";
 
         body = "";
@@ -264,26 +271,26 @@ std::string http_request::get_request(bool keep_alive) const
     }
     else if(f_has_data)
     {
-        request << (f_command.empty() ? "POST" : f_command.c_str())
-                << " " << f_path << " HTTP/1.1\r\n";
+        request << (f_command.empty() ? g_name_edhttp_method_post : f_command.c_str())
+                << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         body = f_body;
     }
     else if(f_has_body)
     {
-        request << (f_command.empty() ? "GET" : f_command.c_str())
-                << " " << f_path << " HTTP/1.1\r\n";
+        request << (f_command.empty() ? g_name_edhttp_method_get : f_command.c_str())
+                << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         body = f_body;
     }
     else
     {
-        request << (f_command.empty() ? "GET" : f_command.c_str())
-                << " " << f_path << " HTTP/1.1\r\n";
+        request << (f_command.empty() ? g_name_edhttp_method_get : f_command.c_str())
+                << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         // body is empty by default
         //body = "";
     }
 
     // place Host first because some servers are that stupid
-    request << "Host: " << get_host() << "\r\n";
+    request << g_name_edhttp_field_host << ": " << get_host() << "\r\n";
 
     bool found_user_agent(false);
     for(auto it(f_headers.begin()); it != f_headers.end(); ++it)
@@ -295,12 +302,12 @@ std::string http_request::get_request(bool keep_alive) const
         //
         std::string name(it->first);
         std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-        if((content_type.empty() || name != "content-type")
-        && name != "content-length"
-        && name != "host"
-        && name != "connection")
+        if((content_type.empty() || name != g_name_edhttp_field_content_type_lowercase)
+        && name != g_name_edhttp_field_content_length_lowercase
+        && name != g_name_edhttp_field_host_lowercase
+        && name != g_name_edhttp_field_connection_lowercase)
         {
-            if(name == "user-agent")
+            if(name == g_name_edhttp_field_user_agent_lowercase)
             {
                 found_user_agent = true;
             }
@@ -314,11 +321,15 @@ std::string http_request::get_request(bool keep_alive) const
     // forcing the type? (generally doing so with POSTs)
     if(!content_type.empty())
     {
-        request << "Content-Type: " << content_type << "\r\n";
+        request << g_name_edhttp_fiekd_content_type << ": " << content_type << "\r\n";
     }
     if(!found_user_agent)
     {
-        request << "User-Agent: snapwebsites/" EDHTTP_VERSION_STRING "\r\n";
+        request
+            << g_name_edhttp_field_user_agent
+            << ": "
+            << f_agent_name
+            << "/" EDHTTP_VERSION_STRING "\r\n";
     }
 
     // force the connection valid to what the programmer asked (keep-alive by
@@ -328,12 +339,21 @@ std::string http_request::get_request(bool keep_alive) const
     //          "keep-alive"; however, it looks like many implementations
     //          understand both (there is also an "upgrade" which we do not
     //          support)
-    request << "Connection: " << (keep_alive ? "keep-alive" : "close") << "\r\n";
+    request
+        << g_name_edhttp_field_connection
+        << ": "
+        << (keep_alive ? g_name_edhttp_param_keep_alive
+                       : g_name_edhttp_param_close)
+        << "\r\n";
 
     // end the list with the fields we control:
     //
     // Content-Length is the size of the body
-    request << "Content-Length: " << body.length() << "\r\n\r\n";
+    request
+        << g_name_edhttp_field_content_length
+        << ": "
+        << body.length()
+        << "\r\n\r\n";
 
     // TBD: will this work if 'body' includes a '\0'?
     request << body;
@@ -436,6 +456,12 @@ void http_request::set_port(int port)
             r.get_to().set_port(port);
         }
     }
+}
+
+
+void http_request::set_agent_name(std::string const & name)
+{
+    f_agent_name = name;
 }
 
 
@@ -547,7 +573,9 @@ void http_request::set_basic_auth(std::string const & username, std::string cons
     std::string base64;
     encode(authorization_token, base64);
 
-    set_header("Authorization", "Basic " + base64);
+    set_header(
+          g_name_edhttp_field_authorization
+        , g_name_edhttp_param_basic_authorization + (' ' + base64));
 }
 
 
@@ -820,11 +848,11 @@ SNAP_LOG_TRACE
 
         void read_body()
         {
-            if(f_response->has_header("content-length"))
+            if(f_response->has_header(g_name_edhttp_field_content_length_lowercase))
             {
                 // server sent a content-length parameter, make use of
                 // it and do one "large" read
-                std::string const length(f_response->get_header("content-length"));
+                std::string const length(f_response->get_header(g_name_edhttp_field_content_length_lowercase));
                 int64_t content_length(0);
                 for(char const * l(length.c_str()); *l != '\0'; ++l)
                 {

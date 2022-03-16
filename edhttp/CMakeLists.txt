@@ -18,6 +18,8 @@
 
 project(edhttp)
 
+AtomicNames("names.an")
+
 # Put the version in the header file
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/version.h.in
@@ -30,6 +32,7 @@ add_library(${PROJECT_NAME} SHARED
     http_date.cpp
     mime_type.cpp
     mkgmtime.c
+    names.cpp
     quoted_printable.cpp
     string_part.cpp
     uri.cpp

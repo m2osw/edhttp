@@ -23,15 +23,17 @@
 //
 #include    "edhttp/exception.h"
 
+#include    "edhttp/names.h"
+
 
 // libaddr
 //
-#include    "libaddr/addr_range.h"
+#include    <libaddr/addr_range.h>
 
 
 // advgetopt
 //
-#include    "advgetopt/utils.h"
+#include    <advgetopt/utils.h>
 
 
 // C++
@@ -139,7 +141,7 @@ private:
     // f_original is the unchanged source (from constructor or
     // last set_uri() call)
     std::string                 f_original = std::string();
-    std::string                 f_protocol = std::string("http");
+    std::string                 f_protocol = std::string(g_name_edhttp_protocol_http);
     std::string                 f_username = std::string();
     std::string                 f_password = std::string();
     int                         f_port = 80;
