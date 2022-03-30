@@ -1351,7 +1351,7 @@ std::string uri::path(bool encoded) const
     {
         std::string output;
         bool first(true);
-        for(auto const segment : f_path)
+        for(auto const & segment : f_path)
         {
             if(first)
             {
