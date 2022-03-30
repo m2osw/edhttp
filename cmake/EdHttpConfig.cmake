@@ -1,11 +1,11 @@
-# - Try to find Sitter
+# - Try to find EdHttp
 #
 # Once done this will define
 #
-# SITTER_FOUND        - System has Sitter
-# SITTER_INCLUDE_DIRS - The Sitter include directories
-# SITTER_LIBRARIES    - The libraries needed to use Sitter
-# SITTER_DEFINITIONS  - Compiler switches required for using Sitter
+# EDHTTP_FOUND        - System has EdHttp
+# EDHTTP_INCLUDE_DIRS - The EdHttp include directories
+# EDHTTP_LIBRARIES    - The libraries needed to use EdHttp
+# EDHTTP_DEFINITIONS  - Compiler switches required for using EdHttp
 #
 # License:
 #
@@ -28,38 +28,38 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 find_path(
-    SITTER_INCLUDE_DIR
-        sitter/version.h
+    EDHTTP_INCLUDE_DIR
+        edhttp/version.h
 
     PATHS
-        $ENV{SITTER_INCLUDE_DIR}
+        $ENV{EDHTTP_INCLUDE_DIR}
 )
 
 find_library(
-    SITTER_LIBRARY
-        sitter
+    EDHTTP_LIBRARY
+        edhttp
 
     PATHS
-        $ENV{SITTER_LIBRARY}
+        $ENV{EDHTTP_LIBRARY}
 )
 
 mark_as_advanced(
-    SITTER_INCLUDE_DIR
-    SITTER_LIBRARY
+    EDHTTP_INCLUDE_DIR
+    EDHTTP_LIBRARY
 )
 
-set(SITTER_INCLUDE_DIRS ${SITTER_INCLUDE_DIR})
-set(SITTER_LIBRARIES    ${SITTER_LIBRARY})
+set(EDHTTP_INCLUDE_DIRS ${EDHTTP_INCLUDE_DIR})
+set(EDHTTP_LIBRARIES    ${EDHTTP_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
 
-# handle the QUIETLY and REQUIRED arguments and set SITTER_FOUND to
+# handle the QUIETLY and REQUIRED arguments and set EDHTTP_FOUND to
 # TRUE if all listed variables are TRUE
 find_package_handle_standard_args(
-    Sitter
+    EdHttp
     DEFAULT_MSG
-    SITTER_INCLUDE_DIR
-    SITTER_LIBRARY
+    EDHTTP_INCLUDE_DIR
+    EDHTTP_LIBRARY
 )
 
 # vim: ts=4 sw=4 et
