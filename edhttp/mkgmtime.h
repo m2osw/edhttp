@@ -21,7 +21,7 @@
 #ifndef _MKGMTIME_H_
 #define _MKGMTIME_H_
 
-#include <time.h>
+#include    <time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,3 +35,4 @@ extern time_t mkgmtime(struct tm * tim_p);
 
 #endif
 //_MKGMTIME_H_
+// vim: ts=4 sw=2 et

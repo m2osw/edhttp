@@ -17,9 +17,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-// libexcept lib
+// libexcept
 //
-#include "libexcept/exception.h"
+#include    <libexcept/exception.h>
 
 
 

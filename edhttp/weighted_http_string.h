@@ -19,7 +19,7 @@
 
 // self
 //
-#include    "string_part.h"
+#include    <edhttp/string_part.h>
 
 
 

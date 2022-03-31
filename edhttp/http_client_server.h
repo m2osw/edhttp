@@ -19,12 +19,12 @@
 
 // eventdispatcher
 //
-#include    "eventdispatcher/tcp_bio_client.h"
+#include    <eventdispatcher/tcp_bio_client.h>
 
 
 // libaddr
 //
-#include    "libaddr/addr_range.h"
+#include    <libaddr/addr_range.h>
 
 
 // C++

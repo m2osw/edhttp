@@ -39,9 +39,9 @@
  * Modifications:  Fixed tm_isdst usage - 27 August 2008 Craig Howland.
  */
 
-#include "edhttp/mkgmtime.h"
+#include    "edhttp/mkgmtime.h"
 
-#include <stdlib.h>
+#include    <stdlib.h>
 
 #define _SEC_IN_MINUTE 60L
 #define _SEC_IN_HOUR 3600L
@@ -254,4 +254,4 @@ time_t mkgmtime(struct tm *tim_p)
   return tim;
 }
 
-// vim: ts=2 sw=2 et
+// vim: ts=4 sw=4 et

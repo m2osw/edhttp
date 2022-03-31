@@ -21,9 +21,9 @@
 
 // self
 //
-#include    "edhttp/exception.h"
+#include    <edhttp/exception.h>
 
-#include    "edhttp/names.h"
+#include    <edhttp/names.h>
 
 
 // libaddr
