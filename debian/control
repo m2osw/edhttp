@@ -1,13 +1,15 @@
 Source: edhttp
 Priority: extra
 Maintainer: Alexis Wilke <alexis@m2osw.com>
-Build-Depends: cmake,
+Build-Depends: as2js-dev (>= 0.1.36.0~bionic),
+    cmake,
     debhelper,
     doxygen,
     eventdispatcher (>= 1.1.51.0~bionic),
     graphviz,
     libaddr (>= 1.0.28.0~bionic),
     libexcept (>= 1.1.12.0~bionic),
+    libmagic-dev,
     libtld (>= 2.0.8.1~bionic),
     snapcatch2 (>= 2.9.1.0~bionic),
     snapcmakemodules (>= 1.0.49.0~bionic),
