@@ -58,10 +58,10 @@ public:
 
     // constructors
                                 uri();
-                                uri(std::string const & uri);
+                                uri(std::string const & uri, bool accept_path = false);
 
     // URI handling
-    bool                        set_uri(std::string const & uri);
+    bool                        set_uri(std::string const & uri, bool accept_path = false);
     std::string const &         get_original_uri() const;
     std::string                 get_uri(bool use_hash_bang = false) const;
     std::string                 get_website_uri(bool include_port = false) const;

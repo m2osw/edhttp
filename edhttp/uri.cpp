@@ -94,12 +94,14 @@ uri::uri()
  * Should this function throw if the URI is considered invalid?
  *
  * \param[in] u  The URI to assign to this Snap URI object.
+ * \param[in] accept_path  Whether to accept path like URIs (such as
+ * "file:///<path>").
  *
  * \sa set_uri()
  */
-uri::uri(std::string const & u)
+uri::uri(std::string const & u, bool accept_path)
 {
-    if(!set_uri(u))
+    if(!set_uri(u, accept_path))
     {
         // TBD: should we throw if set_uri() returns false?
         SNAP_LOG_ERROR
@@ -110,10 +112,10 @@ uri::uri(std::string const & u)
     }
 }
 
-/** \brief Replace the URI of this Snap URI object.
+/** \brief Replace the URI of this object.
  *
- * This function replaces the current Snap URI object information
- * with the specified \p str data.
+ * This function replaces the current object information with the specified
+ * \p str data.
  *
  * Before calling this function YOU must force a URI encoding if the
  * URI is not yet encoded.
@@ -121,11 +123,14 @@ uri::uri(std::string const & u)
  * Anything wrong in the syntax and the function returns false. Wrong
  * means empty entries, invalid encoding sequence, etc.
  *
- * \param[in] str  The new URI to replace all the current data of this Snap URI object.
+ * \param[in] str  The new URI to replace all the current data of this object.
+ * \param[in] accept_path  Whether to accept path like URIs (such as
+ * "file:///<path>").
  *
- * \return false if the URI could not be parsed (in which case nothing's changed in the object); true otherwise
+ * \return false if the URI could not be parsed (in which case nothing's
+ * changed in the object); true otherwise
  */
-bool uri::set_uri(std::string const & str)
+bool uri::set_uri(std::string const & str, bool accept_path)
 {
     char const * u(str.c_str());
 
@@ -145,121 +150,132 @@ bool uri::set_uri(std::string const & str)
     // skip the ://
     u += 3;
 
-    // retrieve the sub-domains and domain parts
-    // we may also discover a name, password, and port
-    char const * colon1(nullptr);
-    char const * colon2(nullptr);
-    char const * at(nullptr);
-    for(s = u; *u != '\0' && *u != '/'; ++u)
+    std::string username;
+    std::string password;
+    advgetopt::string_list_t sub_domain_names;
+    std::string domain_name;
+    std::string tld;
+    int port(protocol_to_port(uri_protocol));
+
+    if(*u == '/'
+    && accept_path)
     {
-        if(*u == ':')
+        // in this case we have no username, password or domain name
+        //
+        ++u;
+    }
+    else
+    {
+        // retrieve the sub-domains and domain parts
+        // we may also discover a name, password, and port
+        char const * colon1(nullptr);
+        char const * colon2(nullptr);
+        char const * at(nullptr);
+        for(s = u; *u != '\0' && *u != '/'; ++u)
         {
-            if(colon1 == nullptr)
+            if(*u == ':')
             {
-                colon1 = u;
-            }
-            else
-            {
-                if(at != nullptr)
+                if(colon1 == nullptr)
                 {
-                    if(colon2 != nullptr)
-                    {
-                        return false;
-                    }
-                    colon2 = u;
+                    colon1 = u;
                 }
                 else
                 {
+                    if(at != nullptr)
+                    {
+                        if(colon2 != nullptr)
+                        {
+                            return false;
+                        }
+                        colon2 = u;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+            if(*u == '@')
+            {
+                if(at != nullptr)
+                {
+                    // we cannot have more than one @ character that wasn't escaped
+                    return false;
+                }
+                at = u;
+            }
+        }
+        // without an at (@) colon1 indicates a port
+        if(at == nullptr && colon1 != nullptr)
+        {
+            // colon2 is nullptr since otherwise we already returned with false
+            colon2 = colon1;
+            colon1 = nullptr;
+        }
+
+        std::string full_domain_name;
+
+        // retrieve the data
+        if(colon1 != nullptr)
+        {
+            // if(at == nullptr) -- missing '@'? this is not possible since we just
+            //                   turned colon1 to colon2 if no '@' was defined
+            username.insert(0, s, colon1 - s);
+            s = colon1 + 1;
+        }
+        if(at != nullptr)
+        {
+            password.insert(0, s, at - s);
+            s = at + 1;
+        }
+        if(colon2 != nullptr)
+        {
+            full_domain_name.insert(0, s, colon2 - s);
+            char const * p(colon2 + 1);
+            if(p == u)
+            {
+                // empty port entries are considered invalid
+                return false;
+            }
+            port = 0;  // Reset port.
+            for(; p < u; ++p)
+            {
+                char const d(*p);
+                if(d < '0' || d > '9')
+                {
+                    // ports only accept digits
+                    return false;
+                }
+                port = port * 10 + d - '0';
+                if(port > 65535)
+                {
+                    // port overflow
                     return false;
                 }
             }
         }
-        if(*u == '@')
+        else
         {
-            if(at != nullptr)
-            {
-                // we cannot have more than one @ character that wasn't escaped
-                return false;
-            }
-            at = u;
+            full_domain_name.insert(0, s, u - s);
         }
-    }
-    // without an at (@) colon1 indicates a port
-    if(at == nullptr && colon1 != nullptr)
-    {
-        // colon2 is nullptr since otherwise we already returned with false
-        colon2 = colon1;
-        colon1 = nullptr;
-    }
 
-    std::string username;
-    std::string password;
-    std::string full_domain_name;
-    int port(protocol_to_port(uri_protocol));
-
-    // retrieve the data
-    if(colon1 != nullptr)
-    {
-        // if(at == nullptr) -- missing '@'? this is not possible since we just
-        //                   turned colon1 to colon2 if no '@' was defined
-        username.insert(0, s, colon1 - s);
-        s = colon1 + 1;
-    }
-    if(at != nullptr)
-    {
-        password.insert(0, s, at - s);
-        s = at + 1;
-    }
-    if(colon2 != nullptr)
-    {
-        full_domain_name.insert(0, s, colon2 - s);
-        char const * p(colon2 + 1);
-        if(p == u)
+        // verify that there is a domain
+        if(full_domain_name.empty())
         {
-            // empty port entries are considered invalid
             return false;
         }
-        port = 0;  // Reset port.
-        for(; p < u; ++p)
+
+        // force a username AND password or neither
+        if(username.empty() ^ password.empty())
         {
-            char const d(*p);
-            if(d < '0' || d > '9')
-            {
-                // ports only accept digits
-                return false;
-            }
-            port = port * 10 + d - '0';
-            if(port > 65535)
-            {
-                // port overflow
-                return false;
-            }
+            return false;
         }
-    }
-    else
-    {
-        full_domain_name.insert(0, s, u - s);
-    }
 
-    // verify that there is a domain
-    if(full_domain_name.empty())
-    {
-        return false;
-    }
-
-    // force a username AND password or neither
-    if(username.empty() ^ password.empty())
-    {
-        return false;
-    }
-
-    // break-up the domain in sub-domains, base domain, and TLD
-    advgetopt::string_list_t sub_domain_names;
-    std::string domain_name;
-    std::string tld;
-    if(!process_domain(full_domain_name, sub_domain_names, domain_name, tld))
-    {
-        return false;
+        // break-up the domain in sub-domains, base domain, and TLD
+        if(!process_domain(full_domain_name, sub_domain_names, domain_name, tld))
+        {
+            return false;
+        }
     }
 
     // now we are ready to parse further (i.e. path)
