@@ -1,7 +1,7 @@
 // Snap Websites Server -- path canonicalization
 // Copyright (c) 2011-2019  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/
+// https://snapwebsites.org/project/edhttp
 // contact@m2osw.com
 //
 // This program is free software; you can redistribute it and/or modify

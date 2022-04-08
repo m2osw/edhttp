@@ -994,8 +994,8 @@ http_response::pointer_t http_client::send_request(http_request const & request)
                 f_connection = std::make_shared<ed::tcp_bio_client>(
                         r.get_from(),
                         r.get_from().get_port() == 443
-                            ? ed::tcp_bio_client::mode_t::MODE_ALWAYS_SECURE
-                            : ed::tcp_bio_client::mode_t::MODE_PLAIN);
+                            ? ed::mode_t::MODE_ALWAYS_SECURE
+                            : ed::mode_t::MODE_PLAIN);
 
                 // we successfully connected, so exit the loop
                 break;
