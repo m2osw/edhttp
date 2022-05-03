@@ -1000,7 +1000,7 @@ http_response::pointer_t http_client::send_request(http_request const & request)
                 // we successfully connected, so exit the loop
                 break;
             }
-            catch(ed::event_dispatcher_failed_connecting const & e)
+            catch(ed::failed_connecting const & e)
             {
                 // try again on a connection error
             }

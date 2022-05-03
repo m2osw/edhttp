@@ -1,12 +1,11 @@
-// Snap Websites Server -- path canonicalization
-// Copyright (c) 2011-2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2011-2022  Made to Order Software Corp.  All Rights Reserved
 //
 // https://snapwebsites.org/project/edhttp
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -15,8 +14,7 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 // self
@@ -61,10 +59,15 @@ public:
                                 uri(std::string const & uri, bool accept_path = false);
 
     // URI handling
-    bool                        set_uri(std::string const & uri, bool accept_path = false);
+    bool                        set_uri(
+                                      std::string const & uri
+                                    , bool accept_path = false
+                                    , bool accept_ip = false);
     std::string const &         get_original_uri() const;
     std::string                 get_uri(bool use_hash_bang = false) const;
     std::string                 get_website_uri(bool include_port = false) const;
+    std::string                 get_last_error_message() const;
+    void                        clear_last_error_message();
 
     // get a part by name
     std::string                 get_part(std::string const & name, int part = -1) const;
@@ -153,6 +156,7 @@ private:
     uri_options_t               f_query_strings = uri_options_t();
     std::string                 f_anchor = std::string();
     addr::addr_range::vector_t  f_address_ranges = addr::addr_range::vector_t();
+    std::string                 f_last_error_message = std::string();
 };
 
 

@@ -1,11 +1,11 @@
-// Copyright (c) 2011-2019  Made to Order Software Corp.  All Rights Reserved
+// Copyright (c) 2011-2022  Made to Order Software Corp.  All Rights Reserved
 //
-// https://snapwebsites.org/
+// https://snapwebsites.org/project/edhttp
 // contact@m2osw.com
 //
-// This program is free software; you can redistribute it and/or modify
+// This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 2 of the License, or
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
 // This program is distributed in the hope that it will be useful,
@@ -13,10 +13,8 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along
-// with this program; if not, write to the Free Software Foundation, Inc.,
-// 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // self
 //
@@ -34,6 +32,7 @@
 #include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/join_strings.h>
 #include    <snapdev/not_used.h>
+#include    <snapdev/safe_assert.h>
 #include    <snapdev/tokenize_string.h>
 
 
@@ -121,16 +120,27 @@ uri::uri(std::string const & u, bool accept_path)
  * URI is not yet encoded.
  *
  * Anything wrong in the syntax and the function returns false. Wrong
- * means empty entries, invalid encoding sequence, etc.
+ * means empty entries, invalid encoding sequence, a bare IP address
+ * when the \p accept_ip is false, etc. The function sets the
+ * last error message accordingly.
+ *
+ * If the function returns false, you can retrieve an error message
+ * with the get_last_error_message() function.
  *
  * \param[in] str  The new URI to replace all the current data of this object.
  * \param[in] accept_path  Whether to accept path like URIs (such as
  * "file:///<path>").
+ * \param[in] accept_ip  Whether a bare IP address is acceptable.
  *
  * \return false if the URI could not be parsed (in which case nothing's
  * changed in the object); true otherwise
+ *
+ * \sa get_last_error_message()
  */
-bool uri::set_uri(std::string const & str, bool accept_path)
+bool uri::set_uri(
+          std::string const & str
+        , bool accept_path
+        , bool accept_ip)
 {
     char const * u(str.c_str());
 
@@ -143,9 +153,13 @@ bool uri::set_uri(std::string const & str, bool accept_path)
     if(u - s < 1 || *u == '\0' || u[1] != '/' || u[2] != '/')
     {
         // protocol is not followed by :// or is an empty string
+        //
+        // (TBD: add support for mailto:...?)
+        //
+        f_last_error_message = "protocol not followed by \"://\".";
         return false;
     }
-    std::string uri_protocol(s, u - s);
+    std::string const uri_protocol(s, u - s);
 
     // skip the ://
     u += 3;
@@ -185,12 +199,14 @@ bool uri::set_uri(std::string const & str, bool accept_path)
                     {
                         if(colon2 != nullptr)
                         {
+                            f_last_error_message = "more than one ':' in the domain name segment (after an '@').";
                             return false;
                         }
                         colon2 = u;
                     }
                     else
                     {
+                        f_last_error_message = "more than one ':' without an '@' character.";
                         return false;
                     }
                 }
@@ -200,6 +216,7 @@ bool uri::set_uri(std::string const & str, bool accept_path)
                 if(at != nullptr)
                 {
                     // we cannot have more than one @ character that wasn't escaped
+                    f_last_error_message = "more than one '@' character found.";
                     return false;
                 }
                 at = u;
@@ -208,7 +225,7 @@ bool uri::set_uri(std::string const & str, bool accept_path)
         // without an at (@) colon1 indicates a port
         if(at == nullptr && colon1 != nullptr)
         {
-            // colon2 is nullptr since otherwise we already returned with false
+            snapdev::SAFE_ASSERT(colon2 == nullptr, "colon2 is not nullptr when at is nullptr?");
             colon2 = colon1;
             colon1 = nullptr;
         }
@@ -218,8 +235,7 @@ bool uri::set_uri(std::string const & str, bool accept_path)
         // retrieve the data
         if(colon1 != nullptr)
         {
-            // if(at == nullptr) -- missing '@'? this is not possible since we just
-            //                   turned colon1 to colon2 if no '@' was defined
+            snapdev::SAFE_ASSERT(at != nullptr, "missing '@' when colon1 is set.");
             username.insert(0, s, colon1 - s);
             s = colon1 + 1;
         }
@@ -235,6 +251,8 @@ bool uri::set_uri(std::string const & str, bool accept_path)
             if(p == u)
             {
                 // empty port entries are considered invalid
+                //
+                f_last_error_message = "port cannot be an empty string.";
                 return false;
             }
             port = 0;  // Reset port.
@@ -244,12 +262,14 @@ bool uri::set_uri(std::string const & str, bool accept_path)
                 if(d < '0' || d > '9')
                 {
                     // ports only accept digits
+                    f_last_error_message = "port must be a valid decimal number.";
                     return false;
                 }
                 port = port * 10 + d - '0';
                 if(port > 65535)
                 {
                     // port overflow
+                    f_last_error_message = "port must be between 0 and 65536.";
                     return false;
                 }
             }
@@ -262,19 +282,57 @@ bool uri::set_uri(std::string const & str, bool accept_path)
         // verify that there is a domain
         if(full_domain_name.empty())
         {
+            f_last_error_message = "a domain name is required.";
             return false;
         }
 
         // force a username AND password or neither
         if(username.empty() ^ password.empty())
         {
+            f_last_error_message = "username and password must both be defined (or define neither).";
             return false;
         }
 
         // break-up the domain in sub-domains, base domain, and TLD
+        //
         if(!process_domain(full_domain_name, sub_domain_names, domain_name, tld))
         {
-            return false;
+            if(!accept_ip)
+            {
+                f_last_error_message =
+                      "could not verify domain name \""
+                    + full_domain_name
+                    + "\".";
+                return false;
+            }
+
+            // prevent lookup (we want to verify that it is an IP)
+            //
+            addr::addr_parser p;
+            p.set_allow(addr::allow_t::ALLOW_REQUIRED_ADDRESS, true);
+            p.set_allow(addr::allow_t::ALLOW_ADDRESS_LOOKUP, false);
+            p.set_allow(addr::allow_t::ALLOW_PORT, false);
+            p.set_protocol("tcp"); // TODO: better manage this issue...
+            addr::addr_range::vector_t result(p.parse(full_domain_name));
+            if(result.size() != 1)
+            {
+                f_last_error_message =
+                      "could not parse \""
+                    + full_domain_name
+                    + "\" as an IP address.";
+                return false;
+            }
+            if(result[0].has_to()
+            || result[0].is_range()
+            || !result[0].has_from())
+            {
+                f_last_error_message =
+                      "it looks like \""
+                    + full_domain_name
+                    + "\" is a range of IP addresses, which is not supported in a URI.";
+                return false;
+            }
+            domain_name = result[0].get_from().to_ipv4or6_string(addr::addr::string_ip_t::STRING_IP_BRACKETS);
         }
     }
 
@@ -291,7 +349,7 @@ bool uri::set_uri(std::string const & str, bool accept_path)
             {
                 if(s != u)
                 {
-                    // decode right here since we just separate one segment
+                    // decode one segment
                     //
                     uri_path.push_back(urldecode(std::string(s, u - s)));
                 }
@@ -362,6 +420,10 @@ bool uri::set_uri(std::string const & str, bool accept_path)
                     // but in our world, we consider that useless and
                     // possibly dangerous)
                     //
+                    f_last_error_message =
+                          "query string \""
+                        + name
+                        + "\" found more than once.";
                     return false;
                 }
                 query_strings[name] = urldecode(value);
@@ -450,6 +512,7 @@ bool uri::set_uri(std::string const & str, bool accept_path)
             {
                 // the path starts with a ".." or has too many ".."
                 //
+                f_last_error_message = "found \"..\" at the beginning of your path.";
                 return false;
             }
 
@@ -647,6 +710,33 @@ std::string uri::get_website_uri(bool include_port) const
     result += '/';
 
     return result;
+}
+
+
+/** \brief Return the last error message.
+ *
+ * This function returns the last error message from the set_uri() call.
+ *
+ * \todo
+ * Make other functions also generate errors.
+ *
+ * \return The last error message or an empty string.
+ */
+std::string uri::get_last_error_message() const
+{
+    return f_last_error_message;
+}
+
+
+/** \brief Clear the last error message.
+ *
+ * This function makes sure that the last error message is cleared so
+ * new errors can be detected by checking whether the last error message
+ * is an empty string or not.
+ */
+void uri::clear_last_error_message()
+{
+    f_last_error_message.clear();
 }
 
 
