@@ -1,6 +1,4 @@
-# - Try to find EdHttp
-#
-# Once done this will define
+# - Find EdHttp
 #
 # EDHTTP_FOUND        - System has EdHttp
 # EDHTTP_INCLUDE_DIRS - The EdHttp include directories
@@ -32,7 +30,7 @@ find_path(
         edhttp/version.h
 
     PATHS
-        $ENV{EDHTTP_INCLUDE_DIR}
+        ENV EDHTTP_INCLUDE_DIR
 )
 
 find_library(
@@ -40,7 +38,8 @@ find_library(
         edhttp
 
     PATHS
-        $ENV{EDHTTP_LIBRARY}
+        ${EDHTTP_LIBRARY_DIR}
+        ENV EDHTTP_LIBRARY
 )
 
 mark_as_advanced(
@@ -53,13 +52,11 @@ set(EDHTTP_LIBRARIES    ${EDHTTP_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
 
-# handle the QUIETLY and REQUIRED arguments and set EDHTTP_FOUND to
-# TRUE if all listed variables are TRUE
 find_package_handle_standard_args(
     EdHttp
-    DEFAULT_MSG
-    EDHTTP_INCLUDE_DIR
-    EDHTTP_LIBRARY
+    REQUIRED_VARS
+        EDHTTP_INCLUDE_DIR
+        EDHTTP_LIBRARY
 )
 
 # vim: ts=4 sw=4 et
