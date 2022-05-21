@@ -1,3 +1,10 @@
+edhttp (1.0.1.2~bionic) bionic; urgency=high
+
+  * Added a missing dependency. Note: The dependency is because of a leak
+    in eventdispatcher that should be fixed.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Sat, 21 May 2022 09:53:18 -0700
+
 edhttp (1.0.1.1~bionic) bionic; urgency=high
 
   * Bumped build version to rebuild on Launchpad.
