@@ -1,3 +1,9 @@
+edhttp (1.0.1.1~bionic) bionic; urgency=high
+
+  * Bumped build version to rebuild on Launchpad.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Sat, 21 May 2022 09:35:08 -0700
+
 edhttp (1.0.1.0~bionic) bionic; urgency=high
 
   * Port of HTTP functions to a contrib so it can be used in other contribs.
