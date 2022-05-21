@@ -1,3 +1,9 @@
+edhttp (1.0.1.5~bionic) bionic; urgency=high
+
+  * The serverplugins is also an intermediate dependency (snaplogger).
+
+ -- Alexis Wilke <alexis@m2osw.com>  Sat, 21 May 2022 16:16:32 -0700
+
 edhttp (1.0.1.4~bionic) bionic; urgency=high
 
   * The libutf8 is an intermediate dependency through eventdispatcher.
