@@ -1,3 +1,9 @@
+edhttp (1.0.1.6~bionic) bionic; urgency=high
+
+  * The cppthread is also an intermediate dependency.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Sat, 21 May 2022 16:36:39 -0700
+
 edhttp (1.0.1.5~bionic) bionic; urgency=high
 
   * The serverplugins is also an intermediate dependency (snaplogger).
