@@ -1,3 +1,9 @@
+edhttp (1.0.1.7~bionic) bionic; urgency=high
+
+  * Bumped build version to rebuild on Launchpad.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Sat, 21 May 2022 22:27:06 -0700
+
 edhttp (1.0.1.6~bionic) bionic; urgency=high
 
   * The cppthread is also an intermediate dependency.
