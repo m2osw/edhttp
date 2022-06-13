@@ -111,6 +111,27 @@ uri::uri(std::string const & u, bool accept_path)
     }
 }
 
+
+/** \brief Clean up the URI.
+ *
+ * The destructor clears the password variable if set.
+ *
+ * \note
+ * This is probably very much useless since many other functions make copies
+ * of it and thus the value is likely still available somewhere in the process
+ * memory.
+ */
+uri::~uri()
+{
+    if(!f_password.empty())
+    {
+        // clear for safety reasons
+        //
+        memset(f_password.data(), 0, f_password.length());
+    }
+}
+
+
 /** \brief Replace the URI of this object.
  *
  * This function replaces the current object information with the specified
@@ -145,6 +166,7 @@ bool uri::set_uri(
     char const * u(str.c_str());
 
     // retrieve the protocol
+    //
     char const * s(u);
     while(*u != '\0' && *u != ':')
     {
@@ -162,6 +184,7 @@ bool uri::set_uri(
     std::string const uri_protocol(s, u - s);
 
     // skip the ://
+    //
     u += 3;
 
     std::string username;
@@ -182,6 +205,7 @@ bool uri::set_uri(
     {
         // retrieve the sub-domains and domain parts
         // we may also discover a name, password, and port
+        //
         char const * colon1(nullptr);
         char const * colon2(nullptr);
         char const * at(nullptr);
@@ -216,6 +240,7 @@ bool uri::set_uri(
                 if(at != nullptr)
                 {
                     // we cannot have more than one @ character that wasn't escaped
+                    //
                     f_last_error_message = "more than one '@' character found.";
                     return false;
                 }
@@ -223,6 +248,7 @@ bool uri::set_uri(
             }
         }
         // without an at (@) colon1 indicates a port
+        //
         if(at == nullptr && colon1 != nullptr)
         {
             snapdev::SAFE_ASSERT(colon2 == nullptr, "colon2 is not nullptr when at is nullptr?");
@@ -233,6 +259,7 @@ bool uri::set_uri(
         std::string full_domain_name;
 
         // retrieve the data
+        //
         if(colon1 != nullptr)
         {
             snapdev::SAFE_ASSERT(at != nullptr, "missing '@' when colon1 is set.");
@@ -262,6 +289,7 @@ bool uri::set_uri(
                 if(d < '0' || d > '9')
                 {
                     // ports only accept digits
+                    //
                     f_last_error_message = "port must be a valid decimal number.";
                     return false;
                 }
@@ -269,6 +297,7 @@ bool uri::set_uri(
                 if(port > 65535)
                 {
                     // port overflow
+                    //
                     f_last_error_message = "port must be between 0 and 65536.";
                     return false;
                 }
@@ -280,6 +309,7 @@ bool uri::set_uri(
         }
 
         // verify that there is a domain
+        //
         if(full_domain_name.empty())
         {
             f_last_error_message = "a domain name is required.";
@@ -287,6 +317,7 @@ bool uri::set_uri(
         }
 
         // force a username AND password or neither
+        //
         if(username.empty() ^ password.empty())
         {
             f_last_error_message = "username and password must both be defined (or define neither).";
@@ -319,13 +350,17 @@ bool uri::set_uri(
                 f_last_error_message =
                       "could not parse \""
                     + full_domain_name
-                    + "\" as an IP address.";
+                    + "\" as a domain name or an IP address.";
                 return false;
             }
             if(result[0].has_to()
             || result[0].is_range()
             || !result[0].has_from())
             {
+                // TBD: after all, a domain name could represent a set of
+                //      IPs to try to connect to so a range here could be
+                //      supported as well
+                //
                 f_last_error_message =
                       "it looks like \""
                     + full_domain_name
@@ -337,6 +372,7 @@ bool uri::set_uri(
     }
 
     // now we are ready to parse further (i.e. path)
+    //
     advgetopt::string_list_t uri_path;
     if(*u != '\0')
     {
@@ -370,6 +406,7 @@ bool uri::set_uri(
     if(*u == '?')
     {
         // skip the '?' and then any (invalid?) introductory '&'
+        //
         do
         {
             ++u;
@@ -384,6 +421,7 @@ bool uri::set_uri(
                 {
                     // special case when a parameter appears without value
                     // ...&name&...
+                    //
                     e = u;
                 }
                 std::string name(s, e - s);
@@ -401,6 +439,7 @@ bool uri::set_uri(
                 // query strings are saved as options (name/value pairs)
                 // although the value may not be defined at all (...&name&...)
                 // query string names are case sensitive (as per 6.2.2.1 of RFC 3986)
+                //
                 std::string value;
                 if(e != u)
                 {
@@ -429,6 +468,7 @@ bool uri::set_uri(
                 query_strings[name] = urldecode(value);
 
                 // skip all the & and then reset s and e
+                //
                 while(*u == '&')
                 {
                     ++u;
@@ -436,6 +476,7 @@ bool uri::set_uri(
                 if(*u == '\0' || *u == '#')
                 {
                     // reached the end of the query strings
+                    //
                     break;
                 }
                 s = u;
@@ -927,6 +968,79 @@ std::string uri::get_part(std::string const & name, int part) const
 }
 
 
+/** \brief Set a user name.
+ *
+ * This function changes the URI user name definition. In many cases,
+ * using a username in your URI is not considered safe.
+ *
+ * You may pass an empty string to remove the user name.
+ *
+ * \param[in] username  The new user name of the URI.
+ */
+void uri::set_username(std::string const & username)
+{
+    f_username = username;
+}
+
+
+/** \brief Get the user name.
+ *
+ * This function returns the URI user name. In most cases, a URI should not
+ * have a user name and password so this function is likely to return an
+ * empty string.
+ *
+ * In most cases, when you define a user name you also define a password.
+ * Note, however, that without a user name, the password is ignored and
+ * not output to a URI (like by the get_uri() function). This does not
+ * prevent the URI from holding a copy of your password.
+ *
+ * \return The URI user name.
+ *
+ * \sa get_password()
+ */
+std::string uri::get_username() const
+{
+    return f_username;
+}
+
+
+/** \brief Get the URI password.
+ *
+ * A URI can include a password. This function allows you to replace that
+ * password with another.
+ *
+ * \note
+ * The password is not encrypted while kept in meomry.
+ *
+ * \param[in] password  The URI new password.
+ */
+void uri::set_password(std::string const & password)
+{
+    f_password = password;
+}
+
+
+/** \brief Get the URI password.
+ *
+ * Ths URI can include a password. This function retrieves that password.
+ *
+ * \remark
+ * A password is not output by the get_uri() function when there is not
+ * user name. The formatting of the URI is invalid with only a password.
+ *
+ * \note
+ * The password is not encrypted while kept in meomry.
+ *
+ * \return The password of the URI or an empty string.
+ *
+ * \sa get_username()
+ */
+std::string uri::get_password() const
+{
+    return f_password;
+}
+
+
 /** \brief Change the protocol.
  *
  * This function is called to set the protocol.
@@ -1333,6 +1447,36 @@ void uri::set_port(int port)
 int uri::get_port() const
 {
     return f_port;
+}
+
+
+/** \brief Retrieve the port number as a string.
+ *
+ * This function returns the specific port used to access
+ * the server as a string instead of an integer.
+ *
+ * \return The port as a string.
+ */
+std::string uri::get_str_port() const
+{
+    return std::to_string(f_port);
+}
+
+
+/** \brief Check whether the URI represents a Unix path.
+ *
+ * The set_uri() function sets the domain to an empty string if the URI
+ * represents a Unix URI (i.e. a path to a file representing a socket).
+ *
+ * Note that the function does not in any way verify whether the other
+ * parameters than f_domain are valid and represent a correct Unix
+ * URI. This is the responsability of the caller.
+ *
+ * \return true if the domain string is empty.
+ */
+bool uri::is_unix() const
+{
+    return f_domain.empty();
 }
 
 

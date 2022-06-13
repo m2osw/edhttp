@@ -54,9 +54,10 @@ public:
     typedef std::map<std::string, std::string>
                                 uri_options_t;
 
-    // constructors
+    // constructors/destructor
                                 uri();
                                 uri(std::string const & uri, bool accept_path = false);
+                                ~uri();
 
     // URI handling
     bool                        set_uri(
@@ -71,6 +72,12 @@ public:
 
     // get a part by name
     std::string                 get_part(std::string const & name, int part = -1) const;
+
+    // user/password
+    void                        set_username(std::string const & username);
+    std::string                 get_username() const;
+    void                        set_password(std::string const & password);
+    std::string                 get_password() const;
 
     // protocol handling
     void                        set_protocol(std::string const & uri_protocol);
@@ -93,8 +100,10 @@ public:
     void                        set_port(std::string const & port);
     void                        set_port(int port);
     int                         get_port() const;
+    std::string                 get_str_port() const;
 
     // path handling
+    bool                        is_unix() const;
     void                        set_path(std::string uri_path);
     std::string                 path(bool encoded = true) const;
     int                         path_count() const;
