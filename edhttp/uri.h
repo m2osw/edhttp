@@ -65,7 +65,9 @@ public:
                                     , bool accept_path = false
                                     , bool accept_ip = false);
     std::string const &         get_original_uri() const;
-    std::string                 get_uri(bool use_hash_bang = false) const;
+    std::string                 get_uri(
+                                      bool use_hash_bang = false
+                                    , std::string const & redact = std::string()) const;
     std::string                 get_website_uri(bool include_port = false) const;
     std::string                 get_last_error_message() const;
     void                        clear_last_error_message();

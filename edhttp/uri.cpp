@@ -635,10 +635,13 @@ std::string const & uri::get_original_uri() const
  *
  * \param[in] use_hash_bang  When this flag is set to true the URI is returned
  * as a hash bang (i.e. domain/path becomes domain/#!path).
+ * \param[in] redact  If this string is not empty and the URI includes a
+ * password, this string is used instead of the password. This is often set
+ * to something like "XXX" or similar.
  *
  * \return The URI represented by this Snap URI object.
  */
-std::string uri::get_uri(bool use_hash_bang) const
+std::string uri::get_uri(bool use_hash_bang, std::string const & redact) const
 {
     std::string result(f_protocol);
 
@@ -651,7 +654,7 @@ std::string uri::get_uri(bool use_hash_bang) const
         if(!f_password.empty())
         {
             result += ':';
-            result += urlencode(f_password);
+            result += urlencode(redact.empty() ? f_password : redact);
         }
         result += '@';
     }
