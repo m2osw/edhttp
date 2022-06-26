@@ -367,7 +367,7 @@ bool uri::set_uri(
                     + "\" is a range of IP addresses, which is not supported in a URI.";
                 return false;
             }
-            domain_name = result[0].get_from().to_ipv4or6_string(addr::addr::string_ip_t::STRING_IP_BRACKETS);
+            domain_name = result[0].get_from().to_ipv4or6_string(addr::string_ip_t::STRING_IP_BRACKETS);
         }
     }
 

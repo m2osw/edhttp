@@ -143,7 +143,7 @@ std::string http_request::get_host() const
     std::string hostname(f_address_ranges[0].get_from().get_hostname());
     if(hostname.empty())
     {
-        return f_address_ranges[0].get_from().to_ipv4or6_string(addr::addr::string_ip_t::STRING_IP_ONLY);
+        return f_address_ranges[0].get_from().to_ipv4or6_string(addr::string_ip_t::STRING_IP_ONLY);
     }
 
     return hostname;
