@@ -38,6 +38,9 @@ public:
     // an authoritative document at the IANA clearly says that
     // the default level (quality value) is 1.0f.
     //
+    // Note: we use functions because these values are floating points and
+    //       for some odd reasons C++ doesn't support such as plain constants
+    //
     static level_t constexpr    DEFAULT_LEVEL() { return 1.0f; }
 
     static level_t constexpr    UNDEFINED_LEVEL() { return -1.0f; }
@@ -61,7 +64,7 @@ private:
 
     std::string                 f_name = std::string();
     std::string                 f_value = std::string();
-    level_t                     f_level = DEFAULT_LEVEL(); // i.e.  q=0.8
+    level_t                     f_level = DEFAULT_LEVEL(); // i.e.  q=1.0
     // TODO add support for any other parameter
     parameters_t                f_param = parameters_t();
 };

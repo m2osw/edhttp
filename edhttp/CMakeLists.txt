@@ -27,9 +27,11 @@ configure_file(
 )
 
 add_library(${PROJECT_NAME} SHARED
+    cache_control.cpp
     http_client_server.cpp
     http_cookie.cpp
     http_date.cpp
+    http_link.cpp
     mime_type.cpp
     mkgmtime.c
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
@@ -42,8 +44,13 @@ add_library(${PROJECT_NAME} SHARED
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC
-        ${SNAPDEV_INCLUDE_DIR}
+        ${ADVGETOPT_INCLUDE_DIRS}
+        ${EVENTDISPATCHER_INCLUDE_DIRS}
+        ${LIBEXCEPT_INCLUDE_DIRS}
+        ${LIBTLD_INCLUDE_DIRS}
+        ${SNAPLOGGER_INCLUDE_DIRS}
         ${MAGIC_INCLUDE_DIRS}
+        ${SNAPDEV_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}

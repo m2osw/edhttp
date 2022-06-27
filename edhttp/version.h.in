@@ -25,10 +25,10 @@ namespace edhttp
 #define    EDHTTP_VERSION_PATCH   @EDHTTP_VERSION_PATCH@
 #define    EDHTTP_VERSION_STRING  "@EDHTTP_VERSION_MAJOR@.@EDHTTP_VERSION_MINOR@.@EDHTTP_VERSION_PATCH@"
 
-int get_major_version();
-int get_release_version();
-int get_patch_version();
-char const * get_version_string();
+int             get_major_version();
+int             get_release_version();
+int             get_patch_version();
+char const *    get_version_string();
 
 } // namespace edhttp
 // vim: ts=4 sw=4 et

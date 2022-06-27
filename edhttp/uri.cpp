@@ -20,6 +20,7 @@
 //
 #include    "edhttp/uri.h"
 
+#include    <edhttp/exception.h>
 
 
 // snaplogger
@@ -46,10 +47,14 @@
 #include    <libtld/tld.h>
 
 
+// C++
+//
+#include    <cstring>
+
+
 // C
 //
 #include    <netdb.h>
-#include    <string.h>
 
 
 // last include

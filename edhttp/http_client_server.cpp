@@ -21,6 +21,7 @@
 //
 #include    "edhttp/http_client_server.h"
 
+#include    "edhttp/exception.h"
 #include    "edhttp/names.h"
 #include    "edhttp/uri.h"
 #include    "edhttp/version.h"
