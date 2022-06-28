@@ -10,15 +10,26 @@ src="https://snapwebsites.org/sites/snapwebsites.org/files/images/edhttp-logo.pn
 This event dispatcher extension is the implementation of HTTP 1.1, 2, and 3.
 The library also includes all sorts of HTML extensions.
 
+
+# Sample for Health
+
+The project can include an example class in the library that a service can
+create in order to offer a way for other services to check the current status
+of a service.
+
+The service can have a way to update its status especially if the it has
+some long running tasks (workers threads).
+
+
 # Change of Mind
 
 The more I'm thinking about it, the more I'm thinking it has to be
-within the eventdispatcher to be 100% seamless. That way one just creates
+an eventdispatcher extension to be 100% seamless. That way one just creates
 an `http_client_connection` or an `http_server_connection`. What happens
 under the hood would be completely hidden. Plus we can handle the headers
-using our classes found in the libsnapwebsites. So a user sets up the
-headers, including a buffer of data when required, then does a
-`send_request()` on their client or server and voila, it works.
+using our classes found in the libsnapwebsites (most already moved here).
+So a user sets up the headers, including a buffer of data when required,
+then does a `send_request()` on their client or server and voila, it works.
 
 The implementation of HTTP/2 can most certainly be done within the
 same `http_client_connection` and `http_server_connection` object.

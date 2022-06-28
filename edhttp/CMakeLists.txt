@@ -28,6 +28,7 @@ configure_file(
 
 add_library(${PROJECT_NAME} SHARED
     cache_control.cpp
+    health.cpp
     http_client_server.cpp
     http_cookie.cpp
     http_date.cpp

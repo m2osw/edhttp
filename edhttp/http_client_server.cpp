@@ -193,9 +193,9 @@ void http_request::set_address_ranges(addr::addr_range::vector_t const & address
 }
 
 
-std::string http_request::get_command() const
+std::string http_request::get_method() const
 {
-    return f_command;
+    return f_method;
 }
 
 
@@ -245,7 +245,7 @@ std::string http_request::get_request(bool keep_alive) const
 
     if(f_has_attachment)
     {
-        request << (f_command.empty() ? g_name_edhttp_method_post : f_command.c_str())
+        request << (f_method.empty() ? g_name_edhttp_method_post : f_method.c_str())
                 << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
 
         throw edhttp_client_server_logic_error("http_client_server.cpp:get_request(): attachments not supported yet");
@@ -254,7 +254,7 @@ std::string http_request::get_request(bool keep_alive) const
     {
         // TODO: support the case where the post variables are passed using
         //       a GET and a query string
-        request << (f_command.empty() ? g_name_edhttp_method_post : f_command.c_str())
+        request << (f_method.empty() ? g_name_edhttp_method_post : f_method.c_str())
                 << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         content_type = "application/x-www-form-urlencoded";
 
@@ -272,19 +272,19 @@ std::string http_request::get_request(bool keep_alive) const
     }
     else if(f_has_data)
     {
-        request << (f_command.empty() ? g_name_edhttp_method_post : f_command.c_str())
+        request << (f_method.empty() ? g_name_edhttp_method_post : f_method.c_str())
                 << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         body = f_body;
     }
     else if(f_has_body)
     {
-        request << (f_command.empty() ? g_name_edhttp_method_get : f_command.c_str())
+        request << (f_method.empty() ? g_name_edhttp_method_get : f_method.c_str())
                 << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         body = f_body;
     }
     else
     {
-        request << (f_command.empty() ? g_name_edhttp_method_get : f_command.c_str())
+        request << (f_method.empty() ? g_name_edhttp_method_get : f_method.c_str())
                 << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         // body is empty by default
         //body = "";
@@ -470,9 +470,9 @@ void http_request::set_agent_name(std::string const & name)
 }
 
 
-void http_request::set_command(std::string const & command)
+void http_request::set_method(std::string const & method)
 {
-    f_command = command;
+    f_method = method;
 }
 
 
