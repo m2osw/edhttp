@@ -28,6 +28,7 @@
 //
 #include    <eventdispatcher/communicator.h>
 #include    <eventdispatcher/tcp_server_connection.h>
+#include    <eventdispatcher/tcp_server_client_message_connection.h>
 
 
 // snaplogger
@@ -104,13 +105,14 @@ advgetopt::option const g_options[] =
 
 
 
-class health_connection
+// TODO: this needs to be a the HTTP server (which we do not quite have yet)
+class health_server_connection
     : public ed::tcp_server_connection
 {
 public:
-    typedef std::shared_ptr<health_connection>      pointer_t;
+    typedef std::shared_ptr<health_server_connection>      pointer_t;
 
-                        health_connection(
+                        health_server_connection(
                                       addr::addr const & addr
                                     , std::string const & certificate
                                     , std::string const & private_key
@@ -121,12 +123,31 @@ public:
     void                set_status(std::string const & status);
     std::string         get_status() const;
 
+    // tcp_server_connection implementation
+    virtual void        process_accept();
+
 private:
     std::string         f_status = std::string();
 };
 
 
-health_connection::health_connection(
+class health_client_connection
+    : public ed::tcp_server_client_message_connection
+{
+public:
+                                health_client_connection(
+                                      health_server_connection * server
+                                    , ed::tcp_bio_client::pointer_t client);
+
+                                health_client_connection(health_client_connection const &) = delete;
+    health_client_connection &  operator = (health_client_connection const &) = delete;
+
+private:
+    health_server_connection *  f_server = nullptr;
+};
+
+
+health_server_connection::health_server_connection(
           addr::addr const & addr
         , std::string const & certificate
         , std::string const & private_key
@@ -147,7 +168,7 @@ health_connection::health_connection(
 }
 
 
-void health_connection::set_status(std::string const & status)
+void health_server_connection::set_status(std::string const & status)
 {
     f_status = status;
 
@@ -155,14 +176,53 @@ void health_connection::set_status(std::string const & status)
 }
 
 
-std::string health_connection::get_status() const
+std::string health_server_connection::get_status() const
 {
     return f_status;
 }
 
 
+void health_server_connection::process_accept()
+{
+    ed::tcp_bio_client::pointer_t const new_client(accept());
+    if(new_client == nullptr)
+    {
+        // an error occurred, report in the logs
+        int const e(errno);
+        SNAP_LOG_ERROR
+            << "somehow accept() failed with errno: "
+            << e
+            << " -- "
+            << strerror(e)
+            << SNAP_LOG_SEND;
+        return;
+    }
 
-health_connection::pointer_t            g_health_connection;
+    health_client_connection::pointer_t client(std::make_shared<health_client_connection>(this, new_client));
+    if(!ed::communicator::instance()->add_connection(client))
+    {
+        SNAP_LOG_ERROR
+            << "adding a health client connection to the list of connections failed."
+            << SNAP_LOG_SEND;
+        return;
+    }
+}
+
+
+
+
+
+health_client_connection::health_client_connection(
+          health_server_connection * server
+        , ed::tcp_bio_client::pointer_t client)
+    : tcp_server_client_message_connection(client)
+    , f_server(server)
+{
+}
+
+
+
+health_server_connection::pointer_t            g_health_connection;
 
 
 
@@ -233,7 +293,7 @@ bool process_health_options(advgetopt::getopt & opts)
         return false;
     }
 
-    g_health_connection = std::make_shared<health_connection>(
+    g_health_connection = std::make_shared<health_server_connection>(
               vec[0].get_from()
             , certificate
             , private_key
