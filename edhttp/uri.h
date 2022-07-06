@@ -79,9 +79,9 @@ public:
     void                        set_password(std::string const & password);
     std::string                 get_password() const;
 
-    // protocol handling
-    void                        set_protocol(std::string const & uri_protocol);
-    std::string const &         protocol() const;
+    // scheme handling
+    void                        set_scheme(std::string const & uri_scheme);
+    std::string const &         scheme() const;
 
     // domain & sub-domains handling
     void                        set_domain(std::string const & full_domain_name);
@@ -145,7 +145,7 @@ public:
 
     static std::string          urlencode(std::string const & uri, char const * accepted = "");
     static std::string          urldecode(std::string const & uri, bool relax = false);
-    static int                  protocol_to_port(std::string const & uri_protocol);
+    static int                  scheme_to_port(std::string const & uri_scheme);
 
 private:
     bool                        process_domain(std::string const & full_domain_name, advgetopt::string_list_t & sub_domain_names, std::string & domain_name, std::string & tld);
@@ -153,7 +153,7 @@ private:
     // f_original is the unchanged source (from constructor or
     // last set_uri() call)
     std::string                 f_original = std::string();
-    std::string                 f_protocol = std::string(g_name_edhttp_protocol_http);
+    std::string                 f_scheme = std::string(g_name_edhttp_scheme_http);
     std::string                 f_username = std::string();
     std::string                 f_password = std::string();
     int                         f_port = 80;

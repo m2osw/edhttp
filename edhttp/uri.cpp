@@ -73,12 +73,12 @@ namespace edhttp
  *
  * Initialize a default Snap URI object.
  *
- * By default, the protocol is set to HTTP and everything else is set to
+ * By default, the scheme is set to HTTP and everything else is set to
  * empty. This also means the original URI is set to empty (and stays that
  * way unless you later call set_uri() with a valid URI.)
  *
  * \sa set_uri()
- * \sa set_protocol()
+ * \sa set_scheme()
  * \sa set_domain()
  * \sa set_path()
  * \sa set_option()
@@ -153,6 +153,9 @@ uri::~uri()
  * If the function returns false, you can retrieve an error message
  * with the get_last_error_message() function.
  *
+ * \sa
+ * https://datatracker.ietf.org/doc/html/rfc3986#appendix-A
+ *
  * \param[in] str  The new URI to replace all the current data of this object.
  * \param[in] accept_path  Whether to accept path like URIs (such as
  * "file:///<path>").
@@ -170,7 +173,7 @@ bool uri::set_uri(
 {
     char const * u(str.c_str());
 
-    // retrieve the protocol
+    // retrieve the scheme
     //
     char const * s(u);
     while(*u != '\0' && *u != ':')
@@ -179,14 +182,14 @@ bool uri::set_uri(
     }
     if(u - s < 1 || *u == '\0' || u[1] != '/' || u[2] != '/')
     {
-        // protocol is not followed by :// or is an empty string
+        // scheme is not followed by :// or is an empty string
         //
         // (TBD: add support for mailto:...?)
         //
-        f_last_error_message = "protocol not followed by \"://\".";
+        f_last_error_message = "scheme not followed by \"://\".";
         return false;
     }
-    std::string const uri_protocol(s, u - s);
+    std::string const uri_scheme(s, u - s);
 
     // skip the ://
     //
@@ -197,7 +200,7 @@ bool uri::set_uri(
     advgetopt::string_list_t sub_domain_names;
     std::string domain_name;
     std::string tld;
-    int port(protocol_to_port(uri_protocol));
+    int port(scheme_to_port(uri_scheme));
 
     if(*u == '/'
     && accept_path)
@@ -348,7 +351,7 @@ bool uri::set_uri(
             p.set_allow(addr::allow_t::ALLOW_REQUIRED_ADDRESS, true);
             p.set_allow(addr::allow_t::ALLOW_ADDRESS_LOOKUP, false);
             p.set_allow(addr::allow_t::ALLOW_PORT, false);
-            p.set_protocol("tcp"); // TODO: better manage this issue...
+            p.set_protocol(IPPROTO_TCP); // TODO: better manage this issue...
             addr::addr_range::vector_t result(p.parse(full_domain_name));
             if(result.size() != 1)
             {
@@ -576,7 +579,7 @@ bool uri::set_uri(
 
     // now decode all the entries that may be encoded
     //
-    f_protocol = uri_protocol;
+    f_scheme = uri_scheme;
     f_username = urldecode(username);
     f_password = urldecode(password);
     if(port != -1)
@@ -615,7 +618,7 @@ bool uri::set_uri(
  * called from that f_uri variable.
  *
  * Note that this URI may still include security issues, although if the
- * input was not considered valid (i.e. had a valid protocol, etc.) then
+ * input was not considered valid (i.e. had a valid scheme, etc.) then
  * this function returns an empty string.
  *
  * \return A constant reference to the original Snap URI.
@@ -648,7 +651,7 @@ std::string const & uri::get_original_uri() const
  */
 std::string uri::get_uri(bool use_hash_bang, std::string const & redact) const
 {
-    std::string result(f_protocol);
+    std::string result(f_scheme);
 
     result += "://";
 
@@ -670,7 +673,7 @@ std::string uri::get_uri(bool use_hash_bang, std::string const & redact) const
     // outside of the standard ASCII letters and those definitively require
     // URL encoding to work right.
     result += urlencode(full_domain());
-    if(f_port != protocol_to_port(f_protocol))
+    if(f_port != scheme_to_port(f_scheme))
     {
         result += std::to_string(f_port);
     }
@@ -732,25 +735,25 @@ std::string uri::get_uri(bool use_hash_bang, std::string const & redact) const
  *
  * This function returns the URI of the website, without any path,
  * query string options, anchor. The port is included only if it
- * does not correspond to the protocol and the \p include_port flag
+ * does not correspond to the scheme and the \p include_port flag
  * is set to true.
  *
  * \param[in] include_port  Whether the port should be included.
  *
- * \return The domain name with the protocol and optionally the port.
+ * \return The domain name with the scheme and optionally the port.
  */
 std::string uri::get_website_uri(bool include_port) const
 {
-    std::string result(f_protocol);
+    std::string result(f_scheme);
 
     result += "://";
     result += full_domain();
 
     // only include the port if the caller wants it and if it does not
-    // match the default protocol port
+    // match the default scheme port
     //
     if(include_port
-    && protocol_to_port(f_protocol) != f_port)
+    && scheme_to_port(f_scheme) != f_port)
     {
         result += ':';
         result += std::to_string(f_port);
@@ -804,7 +807,7 @@ void uri::clear_last_error_message()
  * \li password -- The password
  * \li path -- The folder name number \p part
  * \li path-count -- the number of paths
- * \li protocol -- The protocol
+ * \li scheme -- The scheme
  * \li query-string -- The query string number \p part
  * \li query-string-count -- The number of query strings
  * \li sub-domain -- The sub-domain name number \p part
@@ -900,9 +903,9 @@ std::string uri::get_part(std::string const & name, int part) const
         {
             return std::to_string(f_port);
         }
-        if(name == "protocol")
+        if(name == "scheme")
         {
-            return f_protocol;
+            return f_scheme;
         }
         break;
 
@@ -1049,40 +1052,40 @@ std::string uri::get_password() const
 }
 
 
-/** \brief Change the protocol.
+/** \brief Change the scheme.
  *
- * This function is called to set the protocol.
+ * This function is called to set the scheme.
  *
- * The protocol is not checked since this can be used for any
- * URI, not just the HTTP and HTTPS protocols. The name is
+ * The scheme is not checked since this can be used for any
+ * URI, not just the HTTP and HTTPS schemes. The name is
  * expected to be all lowercase and lowercase letters [a-z].
  *
- * \param[in] uri_protocol  The name of the protocol.
+ * \param[in] uri_scheme  The name of the scheme.
  */
-void uri::set_protocol(std::string const & uri_protocol)
+void uri::set_scheme(std::string const & uri_scheme)
 {
-    if(uri_protocol.empty())
+    if(uri_scheme.empty())
     {
-        throw uri_exception_invalid_parameter("the uri_protocol parameter cannot be an empty string");
+        throw uri_exception_invalid_parameter("the uri_scheme parameter cannot be an empty string");
     }
-    f_protocol = uri_protocol;
+    f_scheme = uri_scheme;
 }
 
 
-/** \brief Retrieve a copy of the protocol.
+/** \brief Retrieve a copy of the scheme.
  *
  * This value is the name that defines how messages are being
  * sent between the client and the server.
  *
  * The main interface only accepts "http" and "https", but the
- * uri object accepts all protocols so one can write URIs
- * with protocols such as "ftp", "mail", and "gopher".
+ * uri object accepts all schemes so one can write URIs
+ * with schemes such as "ftp", "mail", and "gopher".
  *
- * \return A constant reference to the protocol of this URI.
+ * \return A constant reference to the scheme of this URI.
  */
-std::string const & uri::protocol() const
+std::string const & uri::scheme() const
 {
-    return f_protocol;
+    return f_scheme;
 }
 
 
@@ -1212,7 +1215,7 @@ bool uri::process_domain(
  * If the domain cannot properly be broken up in sub-domains,
  * the doman name and the tld, then this exception is raised.
  *
- * \param[in] full_domain_name  A full domain name, without protocol, path,
+ * \param[in] full_domain_name  A full domain name, without scheme, path,
  *                              query string or anchor.
  */
 void uri::set_domain(std::string const & full_domain_name)
@@ -1599,7 +1602,7 @@ void uri::set_path(std::string uri_path)
  * the function returns the empty string ("").
  *
  * \param[in] encoded  Should the resulting path be URL encoded already?
- * By default the path is URL encoded as expected by the HTTP protocol.
+ * By default the path is URL encoded as expected by the HTTP scheme.
  *
  * \return The full path of the URI.
  */
@@ -2247,7 +2250,7 @@ bool uri::operator >= (uri const & rhs) const
 /** \brief Encode a URI so it is valid for HTTP.
  *
  * This function encodes all the characters that need to be encoded
- * for a URI to be valid for the HTTP protocol.
+ * for a URI to be valid for the HTTP scheme.
  *
  * WARNING: This encodes the entire string. Remember that the string
  * cannot include characters such as :, /, @, ?, =, &, #, ~ which at
@@ -2464,55 +2467,55 @@ std::string uri::urldecode(std::string const & in, bool relax)
 }
 
 
-/** \brief Return the port corresponding to a protocol.
+/** \brief Return the port corresponding to a scheme.
  *
- * This function determines what port corresponds to a given protocol
+ * This function determines what port corresponds to a given scheme
  * assuming that the default is being used.
  *
- * It will handle common protocols internally, others make use of the
+ * It will handle common schemes internally, others make use of the
  * /etc/services file via the services function calls.
  *
- * \param[in] protocol  The protocol to convert to a port number.
+ * \param[in] scheme  The scheme to convert to a port number.
  *
  * \return The corresponding port number or -1 if the function cannot
  *         determine that number.
  */
-int uri::protocol_to_port(std::string const & protocol)
+int uri::scheme_to_port(std::string const & scheme)
 {
-    if(protocol == g_name_edhttp_protocol_http) // 99% so put it first
+    if(scheme == g_name_edhttp_scheme_http) // 99% so put it first
     {
         return 80;
     }
-    if(protocol == g_name_edhttp_protocol_https) // 0.9% so put it next
+    if(scheme == g_name_edhttp_scheme_https) // 0.9% so put it next
     {
         return 443;
     }
-    if(protocol == g_name_edhttp_protocol_ftp)
+    if(scheme == g_name_edhttp_scheme_ftp)
     {
         return 21;
     }
-    if(protocol == g_name_edhttp_protocol_ssh)
+    if(scheme == g_name_edhttp_scheme_ssh)
     {
         return 22;
     }
-    if(protocol == g_name_edhttp_protocol_telnet)
+    if(scheme == g_name_edhttp_scheme_telnet)
     {
         return 23;
     }
-    if(protocol == g_name_edhttp_protocol_smtp)
+    if(scheme == g_name_edhttp_scheme_smtp)
     {
         return 25;
     }
-    if(protocol == g_name_edhttp_protocol_gopher)
+    if(scheme == g_name_edhttp_scheme_gopher)
     {
         return 70;
     }
 
     // not a common service, ask the system... (probably less than 0.01%)
-    servent * s(getservbyname(protocol.c_str(), g_name_edhttp_protocol_tcp));
+    servent * s(getservbyname(scheme.c_str(), g_name_edhttp_scheme_tcp));
     if(s == nullptr)
     {
-        s = getservbyname(protocol.c_str(), g_name_edhttp_protocol_udp);
+        s = getservbyname(scheme.c_str(), g_name_edhttp_scheme_udp);
         if(s == nullptr)
         {
             // we don't know...
