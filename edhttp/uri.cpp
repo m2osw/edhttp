@@ -153,6 +153,10 @@ uri::~uri()
  * If the function returns false, you can retrieve an error message
  * with the get_last_error_message() function.
  *
+ * \todo
+ * A the moment, the RFC is not followed. We should verify the characters
+ * of each element are considered legal for that location.
+ *
  * \sa
  * https://datatracker.ietf.org/doc/html/rfc3986#appendix-A
  *
@@ -202,14 +206,8 @@ bool uri::set_uri(
     std::string tld;
     int port(scheme_to_port(uri_scheme));
 
-    if(*u == '/'
-    && accept_path)
-    {
-        // in this case we have no username, password or domain name
-        //
-        ++u;
-    }
-    else
+    if(*u != '/'
+    || !accept_path)
     {
         // retrieve the sub-domains and domain parts
         // we may also discover a name, password, and port
