@@ -21,6 +21,7 @@
 //
 #include    "edhttp/string_part.h"
 
+#include    "edhttp/exception.h"
 
 
 // advgetopt
@@ -47,18 +48,6 @@
 namespace edhttp
 {
 
-
-
-/** \brief The string_part constructor without parameters is for the vector.
- *
- * When initializing a vector, the class has to have a constructor with
- * no parameters. Unfortunate since we would prefer to not allow string_part
- * objects without a name which is considered mandatory (would have to
- * test again once we convert the class to only use the STL library.)
- */
-string_part::string_part()
-{
-}
 
 
 /** \brief Create a named string_part.
@@ -222,6 +211,26 @@ void string_part::add_parameter(std::string const & name, std::string const & va
 std::string string_part::to_string() const
 {
     std::string result(f_name);
+    if(!f_value.empty())
+    {
+        result += '=';
+
+        char q(value_require_quotes(f_value));
+        if(q == '?')
+        {
+            q = '"';
+        }
+        if(q == '\0')
+        {
+            result += f_value;
+        }
+        else
+        {
+            result += q;
+            result += f_value;
+            result += q;
+        }
+    }
 
     for(auto const & it : f_param)
     {
@@ -229,7 +238,22 @@ std::string string_part::to_string() const
         if(!it.second.empty())
         {
             p += '=';
-            p += it.second;
+
+            char q(value_require_quotes(it.second));
+            if(q == '?')
+            {
+                q = '"';
+            }
+            if(q == '\0')
+            {
+                p += it.second;
+            }
+            else
+            {
+                p += q;
+                p += it.second;
+                p += q;
+            }
         }
         result += "; ";
         result += p;
@@ -258,6 +282,64 @@ std::string string_part::to_string() const
 bool string_part::operator < (string_part const & rhs) const
 {
     return f_level > rhs.f_level;
+}
+
+
+/** \brief Determine whether a string needs quoting.
+ *
+ * This function checks the characters in a string a decides whether it needs
+ * quoting. Note that it works on the safe side and will request quotes in
+ * more cases than required.
+ *
+ * The function returns one of:
+ *
+ * * `'\0'` -- no quoting is required
+ * * `'?'` -- a character requires quoting, the type of quote is left to you.
+ * * `'"'` -- the string includes `'\\''` so we need to use `'"'` to quote
+ * * `'\\''` -- the string includes `'"'` so we need to use `'\\''` to quote
+ *
+ * \param[in] value  The string to be checked. In general a part value.
+ *
+ * \return The quote to use or '?' or '\0'.
+ */
+char string_part::value_require_quotes(std::string const & value)
+{
+    char quote('\0');
+    for(auto const v : value)
+    {
+        if((v < 'a' || v > 'z')
+        && (v < 'A' || v > 'Z')
+        && (v < '0' || v > '9')
+        && v != '.'
+        && v != '-'
+        && v != '+'
+        && v != '*'
+        && v != '_')
+        {
+            if(v == '"')
+            {
+                if(quote != '\0' && quote != '\'' && quote != '?')
+                {
+                    throw unquotable_string("string [" + value + "] includes single and double quotes.");
+                }
+                quote = '\'';
+            }
+            else if(v == '\'')
+            {
+                if(quote != '\0' && quote != '"' && quote != '?')
+                {
+                    throw unquotable_string("string [" + value + "] includes single and double quotes.");
+                }
+                quote = '"';
+            }
+            else if(quote == '\0')
+            {
+                quote = '?';
+            }
+        }
+    }
+
+    return quote;
 }
 
 

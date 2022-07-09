@@ -421,7 +421,7 @@ bool uri::set_uri(
         char const * e(nullptr);
         for(s = u;; ++u)
         {
-            if(*u || *u == '&' || *u == '#')
+            if(*u == '\0' || *u == '&' || *u == '#')
             {
                 if(e == nullptr)
                 {
@@ -441,6 +441,10 @@ bool uri::set_uri(
                     //
                     name = "*";
                 }
+                else
+                {
+                    name = urldecode(name);
+                }
 
                 // query strings are saved as options (name/value pairs)
                 // although the value may not be defined at all (...&name&...)
@@ -455,7 +459,6 @@ bool uri::set_uri(
                     //
                     value = std::string(e + 1, u - e - 1);
                 }
-                name = urldecode(name);
                 if(query_strings.find(name) != query_strings.end())
                 {
                     // two parameters with the same name, refused

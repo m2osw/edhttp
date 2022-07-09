@@ -45,7 +45,6 @@ public:
 
     static level_t constexpr    UNDEFINED_LEVEL() { return -1.0f; }
 
-                                string_part();
                                 string_part(std::string const & name);
 
     std::string const &         get_name() const;
@@ -58,6 +57,8 @@ public:
     std::string                 to_string() const;
 
     bool                        operator < (string_part const & rhs) const;
+
+    static char                 value_require_quotes(std::string const & value);
 
 private:
     typedef std::map<std::string, std::string>      parameters_t;

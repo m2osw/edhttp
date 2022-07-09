@@ -39,6 +39,7 @@ add_library(${PROJECT_NAME} SHARED
     quoted_printable.cpp
     string_part.cpp
     uri.cpp
+    validator_uri.cpp
     version.cpp
     weighted_http_string.cpp
 )

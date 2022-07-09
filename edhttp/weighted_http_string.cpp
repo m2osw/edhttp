@@ -58,8 +58,6 @@ namespace edhttp
  * \param[in] str  The list of weighted HTTP strings.
  */
 weighted_http_string::weighted_http_string(std::string const & str)
-    //: f_str() -- auto-init
-    //, f_parts() -- auto-init
 {
     parse(str);
 }
@@ -92,6 +90,20 @@ weighted_http_string::weighted_http_string(std::string const & str)
  *      token: CHAR - [,;]
  *      quoted_string: '"' CHAR '"'
  *                   | "'" CHAR "'"
+ * \endcode
+ *
+ * From [RFC-9110](https://www.rfc-editor.org/rfc/rfc9110.html)
+ * and [RFC-4647](https://www.rfc-editor.org/rfc/rfc4647.html):
+ *
+ * \code
+ *     Accept-Language  = [ ( language-range [ weight ] ) *( OWS "," OWS (
+ *                           language-range [ weight ] ) ) ]
+ *     language-range   = (1*8ALPHA *("-" 1*8alphanum)) / "*"
+ *     alphanum         = ALPHA / DIGIT
+ *     weight           = OWS ";" OWS "q=" qvalue
+ *     qvalue           = ( "0" [ "." 0*3DIGIT ] )
+ *                      / ( "1" [ "." 0*3("0") ] )
+ *     OWS              = *( SP / HTAB )
  * \endcode
  *
  * For example, the following defines a few language strings
@@ -176,35 +188,63 @@ bool weighted_http_string::parse(std::string const & str, bool reset)
             //
             break;
         }
-        char const * v(s);
-        while(*s != '\0' && *s != ',' && *s != ';' && *s != '=' && *s != ' ' && *s != '\t')
-        {
-            ++s;
-        }
 
-        // Note: we check the length of the resulting name, the
-        //       RFC 2616 definition is:
+        // the part name is defined as:
         //
         //          language-tag  = primary-tag *( "-" subtag )
         //          primary-tag   = 1*8ALPHA
-        //          subtag        = 1*8ALPHA
+        //          subtag        = 1*8alphanum
+        //          alphanum      = ALPHA / DIGIT
         //
-        //       so the maximum size is 8 + 1 + 8 = 17 (1 to 8 characters,
-        //       the dash, 1 to 8 characters) and the smallest is 1.
+        // so the maximum size is 8 + 1 + 8 = 17 (1 to 8 characters,
+        // the dash, 1 to 8 characters) and the smallest is 1.
         //
-        std::string name(snapdev::trim_string(std::string(v, s - v), true, true, true));
-        if(name.empty() || name.length() > 17)
+        // note that we may use this parser for other things than just
+        // languages, so make sure that it matches all the categories
+        //
+        // TODO: we want to check that `name` validity (i.e. 8ALPHA)
+        //
+        char const * v(s);
+        while(*s != '\0' && *s != ',' && *s != ';' && *s != '=' && *s != ' ' && *s != '\t' && *s != '-')
+        {
+            ++s;
+        }
+        if(s == v || s - v > 8)
         {
             // something is invalid, name is not defined (this can
             // happen if you just put a ';') or is too large
             //
             // XXX: should we signal the error in some way?
             //
-            f_error_messages += "part name is empty or too long (limit is 17 characters.)\n";
+            f_error_messages += "part name is empty or too long (limit is '8-8' characters).\n";
             break;
         }
-        // TODO: we want to check that `name` validity (i.e. 8ALPHA)
-        //
+        if(*s == '-')
+        {
+            ++s;
+            char const * w(s);
+            while(*s != '\0' && *s != ',' && *s != ';' && *s != '=' && *s != ' ' && *s != '\t' && *s != '-')
+            {
+                ++s;
+            }
+            if(*s == '-')
+            {
+                f_error_messages += "part name cannot include more than one '-'.\n";
+                break;
+            }
+            if(s == w || s - w > 8)
+            {
+                // something is invalid, name is not defined (this can
+                // happen if you just put a ';') or is too large
+                //
+                // XXX: should we signal the error in some way?
+                //
+                f_error_messages += "part sub-name is empty or too long (limit is '8-8' characters).\n";
+                break;
+            }
+        }
+        std::string name(snapdev::trim_string(std::string(v, s - v), true, true, true));
+
         string_part part(name);
 
         // we allow spaces after the name and before the ';', '=', and ','

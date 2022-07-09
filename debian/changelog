@@ -2,11 +2,17 @@ edhttp (1.0.2.0~bionic) bionic; urgency=high
 
   * Added support for username & password get/set functions.
   * Added an is_unix() function to determine the type of URI.
+  * Added a URI validator extension to advgetopt.
   * Moved the cache-control and http-link from the old libsnapwebsites library.
   * Removed a public include which was not required.
   * Added missing include directories.
   * Fixed spelling of SNAPDEV_INCLUDE_DIRS, it has to be plural.
+  * Fixed name-subname size and number of dashes tests.
   * Fixed string_part comment about default level which is 1.0, not 0.8.
+  * Added tests against HTTP weighted strings for 100% coverage.
+  * Verify the version in the tests.
+  * Fixed the name handling in the uri parser: if '*' don't try to urldecode().
+  * Fixed the parsing of a query string parameter: `*v` instead of `*v == '\0'`.
   * Various clean ups.
 
  -- Alexis Wilke <alexis@m2osw.com>  Sun, 12 Jun 2022 21:52:59 -0700

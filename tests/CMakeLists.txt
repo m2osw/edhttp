@@ -29,6 +29,8 @@ if(SnapCatch2_FOUND)
         catch_main.cpp
 
         catch_uri.cpp
+        catch_validator.cpp
+        catch_version.cpp
         catch_weighted_http_strings.cpp
     )
 
