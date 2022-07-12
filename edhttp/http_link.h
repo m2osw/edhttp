@@ -20,6 +20,7 @@
 // C++
 //
 #include    <map>
+#include    <string>
 
 
 
