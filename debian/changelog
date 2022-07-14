@@ -1,3 +1,9 @@
+edhttp (1.0.2.3~bionic) bionic; urgency=high
+
+  * Restored the doxygen calls. The issue is in atomic-names.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Wed, 13 Jul 2022 20:36:59 -0700
+
 edhttp (1.0.2.2~bionic) bionic; urgency=high
 
   * Try without the docs to see how Jammy behaves.
