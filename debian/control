@@ -26,12 +26,12 @@ Homepage: https://snapwebsites.org/
 Vcs-Git: https://github.com/m2osw/snapcpp.git
 Vcs-Browser: https://github.com/m2osw/sitter
 
-Package: edhttp-doc
-Section: doc
-Architecture: all
-Depends: ${misc:Depends}
-Description: Documentation for the C++ Event Dispathcer library.
- This package allows other projects to make use of HTTP clients and servers.
+#Package: edhttp-doc
+#Section: doc
+#Architecture: all
+#Depends: ${misc:Depends}
+#Description: Documentation for the C++ Event Dispathcer library.
+# This package allows other projects to make use of HTTP clients and servers.
 
 Package: edhttp
 Section: utils

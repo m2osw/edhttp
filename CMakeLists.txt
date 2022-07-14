@@ -50,6 +50,6 @@ include_directories(
 add_subdirectory(edhttp)            # Library
 add_subdirectory(tests)             # Tests
 add_subdirectory(cmake)             # CMake Config
-add_subdirectory(doc)               # Documentation
+#add_subdirectory(doc)               # Documentation
 
 # vim: ts=4 sw=4 et nocindent

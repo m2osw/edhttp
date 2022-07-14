@@ -1,3 +1,9 @@
+edhttp (1.0.2.2~bionic) bionic; urgency=high
+
+  * Try without the docs to see how Jammy behaves.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Wed, 13 Jul 2022 19:56:37 -0700
+
 edhttp (1.0.2.1~bionic) bionic; urgency=high
 
   * Updated the doxy file.
