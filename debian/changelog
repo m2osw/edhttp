@@ -1,3 +1,9 @@
+edhttp (1.0.3.0~bionic) bionic; urgency=high
+
+  * Removing 'gdb' as a build requirement.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Thu, 14 Jul 2022 21:40:43 -0700
+
 edhttp (1.0.2.8~bionic) bionic; urgency=high
 
   * Testing with the fix to the advgetopt.
