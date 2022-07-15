@@ -1,3 +1,9 @@
+edhttp (1.0.2.8~bionic) bionic; urgency=high
+
+  * Testing with the fix to the advgetopt.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Thu, 14 Jul 2022 20:49:44 -0700
+
 edhttp (1.0.2.7~bionic) bionic; urgency=high
 
   * Try again. This time the advgetopt was updated.
