@@ -1,3 +1,9 @@
+edhttp (1.0.2.6~bionic) bionic; urgency=high
+
+  * Run atomic-names with debugger (maybe).
+
+ -- Alexis Wilke <alexis@m2osw.com>  Thu, 14 Jul 2022 13:50:13 -0700
+
 edhttp (1.0.2.5~bionic) bionic; urgency=high
 
   * Run with atomic-names debug output.
