@@ -1,3 +1,9 @@
+edhttp (1.0.2.7~bionic) bionic; urgency=high
+
+  * Try again. This time the advgetopt was updated.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Thu, 14 Jul 2022 19:58:05 -0700
+
 edhttp (1.0.2.6~bionic) bionic; urgency=high
 
   * Run atomic-names with debugger (maybe).
