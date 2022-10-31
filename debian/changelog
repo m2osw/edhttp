@@ -1,3 +1,9 @@
+edhttp (1.0.4.0~bionic) bionic; urgency=high
+
+  * Fixed location of a file.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Mon, 31 Oct 2022 14:44:50 -0700
+
 edhttp (1.0.3.0~bionic) bionic; urgency=high
 
   * Removing 'gdb' as a build requirement.
