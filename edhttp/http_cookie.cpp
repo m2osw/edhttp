@@ -25,6 +25,7 @@
 #include    "edhttp/http_date.h"
 #include    "edhttp/mkgmtime.h"
 #include    "edhttp/names.h"
+#include    "edhttp/token.h"
 
 
 // snapdev
@@ -50,99 +51,6 @@ namespace edhttp
 namespace
 {
 
-//     CHAR           = <any US-ASCII character (octets 0 - 127)>
-//     token          = 1*<any CHAR except CTLs or separators>
-//     separators     = "(" | ")" | "<" | ">" | "@"
-//                    | "," | ";" | ":" | "\" | <">
-//                    | "/" | "[" | "]" | "?" | "="
-//                    | "{" | "}" | SP | HT
-#define SNAP_HTTP_TOKEN_CHAR(base, c) (static_cast<uint32_t>(1)<<(((c)-(base))&0x1F))
-constexpr uint32_t const g_http_token[4] = {
-    /* 00-1F */ 0x00000000,
-    /* 20-3F */
-          SNAP_HTTP_TOKEN_CHAR(0x20, '!')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '#')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '$')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '%')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '&')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '\'')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '*')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '+')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '-')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '.')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '0')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '1')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '2')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '3')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '4')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '5')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '6')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '7')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '8')
-        | SNAP_HTTP_TOKEN_CHAR(0x20, '9')
-    ,
-    /* 40-5F */
-          SNAP_HTTP_TOKEN_CHAR(0x40, 'A')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'B')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'C')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'D')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'E')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'F')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'G')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'H')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'I')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'J')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'K')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'L')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'M')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'N')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'O')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'P')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'Q')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'R')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'S')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'T')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'U')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'V')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'W')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'X')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'Y')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, 'Z')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, '^')
-        | SNAP_HTTP_TOKEN_CHAR(0x40, '_')
-    ,
-    /* 60-7F */
-          SNAP_HTTP_TOKEN_CHAR(0x60, '`')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'a')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'b')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'c')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'd')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'e')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'f')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'g')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'h')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'i')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'j')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'k')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'l')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'm')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'n')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'o')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'p')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'q')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'r')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 's')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 't')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'u')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'v')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'w')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'x')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'y')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, 'z')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, '|')
-        | SNAP_HTTP_TOKEN_CHAR(0x60, '~')
-};
-#undef SNAP_HTTP_TOKEN_CHAR
 
 
 void safe_comment(std::string & result, std::string const & comment)
@@ -155,7 +63,6 @@ void safe_comment(std::string & result, std::string const & comment)
         }
     }
 }
-
 
 
 
@@ -227,26 +134,9 @@ http_cookie::http_cookie(std::string const & name, std::string const & value)
     : f_name(name)
     , f_path("/")
 {
-    // TODO: make use of libtuf8 instead
-    int const max_len(f_name.length());
-    if(max_len == 0)
+    if(!is_token(f_name))
     {
-        throw cookie_parse_exception("the name of a cookie cannot be empty");
-    }
-    for(int i(0); i < max_len; ++i)
-    {
-        std::uint8_t c(static_cast<std::uint8_t>(f_name[i]));
-        if(c <= ' ' || c >= 127 || (g_http_token[c >> 5] & (1 << (c & 0x1F))) == 0)
-        {
-            throw cookie_parse_exception(
-                  "the name of a cookie must only include token compatible characters (offensive character: "
-                + std::string(c, 1)
-                + ")");
-        }
-    }
-    if(f_name[0] == '$')
-    {
-        throw cookie_parse_exception("cookie name cannot start with '$'; those are reserved by the HTTP protocol");
+        throw cookie_parse_exception("cookie name cannot be empty, start with '$', or icnlude a reserved character.");
     }
 
     // TODO: here f_snap would always be nullptr but in snap we still need

@@ -35,6 +35,7 @@ DECLARE_OUT_OF_RANGE(edhttp_uri_exception_out_of_range);
 DECLARE_MAIN_EXCEPTION(edhttp_exception);
 
 DECLARE_EXCEPTION(edhttp_exception, unquotable_string);
+DECLARE_EXCEPTION(edhttp_exception, expected_token);
 
 DECLARE_EXCEPTION(edhttp_exception, cookie_parse_exception);
 

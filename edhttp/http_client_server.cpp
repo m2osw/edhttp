@@ -23,6 +23,7 @@
 
 #include    "edhttp/exception.h"
 #include    "edhttp/names.h"
+#include    "edhttp/token.h"
 #include    "edhttp/uri.h"
 #include    "edhttp/version.h"
 
@@ -254,6 +255,7 @@ std::string http_request::get_request(bool keep_alive) const
     {
         // TODO: support the case where the post variables are passed using
         //       a GET and a query string
+        //
         request << (f_method.empty() ? g_name_edhttp_method_post : f_method.c_str())
                 << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         content_type = "application/x-www-form-urlencoded";
@@ -267,6 +269,7 @@ std::string http_request::get_request(bool keep_alive) const
                 body += "&";
             }
             // TODO: escape & and such
+            //
             body += it->first + "=" + it->second;
         }
     }
@@ -320,6 +323,7 @@ std::string http_request::get_request(bool keep_alive) const
     }
 
     // forcing the type? (generally doing so with POSTs)
+    //
     if(!content_type.empty())
     {
         request
@@ -464,9 +468,14 @@ void http_request::set_port(int port)
 }
 
 
-void http_request::set_agent_name(std::string const & name)
+void http_request::set_agent_name(std::string const & agent_name)
 {
-    f_agent_name = name;
+    if(!is_token(agent_name))
+    {
+        throw expected_token("the User-Agent name must be a valid HTTP token.");
+    }
+
+    f_agent_name = agent_name;
 }
 
 

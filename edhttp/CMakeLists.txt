@@ -38,6 +38,7 @@ add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
     quoted_printable.cpp
     string_part.cpp
+    token.cpp
     uri.cpp
     validator_uri.cpp
     version.cpp
