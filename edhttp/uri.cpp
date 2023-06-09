@@ -221,7 +221,19 @@ bool uri::set_uri(
             {
                 if(colon1 == nullptr)
                 {
-                    colon1 = u;
+                    if(at == nullptr)
+                    {
+                        colon1 = u;
+                    }
+                    else if(colon2 != nullptr)
+                    {
+                        f_last_error_message = "more than one ':' in the login info segment (before the '@').";
+                        return false;
+                    }
+                    else
+                    {
+                        colon2 = u;
+                    }
                 }
                 else
                 {
@@ -229,7 +241,7 @@ bool uri::set_uri(
                     {
                         if(colon2 != nullptr)
                         {
-                            f_last_error_message = "more than one ':' in the domain name segment (after an '@').";
+                            f_last_error_message = "more than one ':' in the domain name segment (after the '@').";
                             return false;
                         }
                         colon2 = u;
@@ -296,7 +308,9 @@ bool uri::set_uri(
                 {
                     // ports only accept digits
                     //
-                    f_last_error_message = "port must be a valid decimal number.";
+                    f_last_error_message = "port must be a valid decimal number ('";
+                    f_last_error_message = p;
+                    f_last_error_message = "' unexpected).";
                     return false;
                 }
                 port = port * 10 + d - '0';
