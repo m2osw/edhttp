@@ -1,4 +1,4 @@
-edhttp (1.0.4.1~bionic) bionic; urgency=high
+edhttp (1.0.4.1~jammy) jammy; urgency=high
 
   * Bumped build version to rebuild on Launchpad.
 
