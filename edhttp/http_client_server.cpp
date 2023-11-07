@@ -490,7 +490,10 @@ void http_request::set_path(std::string const & path)
     // TODO: better verify path validity
     if(path.empty())
     {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wrestrict"
         f_path = "/";
+#pragma GCC diagnostic pop
     }
     else if(path[0] == '/')
     {
