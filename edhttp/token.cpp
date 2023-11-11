@@ -24,6 +24,11 @@
 #include    "edhttp/exception.h"
 
 
+// C++
+//
+#include    <cstdint>
+
+
 // last include
 //
 #include    <snapdev/poison.h>
