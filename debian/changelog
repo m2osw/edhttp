@@ -1,3 +1,9 @@
+edhttp (1.0.6.0~jammy) jammy; urgency=high
+
+  * Added note about removing duplicated code.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Sun, 17 Dec 2023 07:45:22 -0800
+
 edhttp (1.0.5.0~jammy) jammy; urgency=high
 
   * Created a separate token function to verify that a string is a valid token.
