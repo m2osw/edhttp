@@ -772,7 +772,7 @@ time_t string_to_date(std::string const & date)
  * This function throws if called with September 1752 because the
  * month has missing days within the month (days 3 to 13).
  *
- * \exception edhttp_client_server_logic_error
+ * \exception logic_error
  * This exception is raised if the month is not between 1 and 12 inclusive
  * or if the month/year is September 1752 (because that month never existed).
  *
@@ -785,7 +785,7 @@ int last_day_of_month(int month, int year)
 {
     if(month < 1 || month > 12)
     {
-        throw edhttp_client_server_logic_error(
+        throw logic_error(
               "last_day_of_month called with "
             + std::to_string(month)
             + " as the month number");
@@ -815,7 +815,7 @@ int last_day_of_month(int month, int year)
     {
         // we cannot handle this nice one here, days 3 to 13 are missing on
         // this month... (to adjust the calendar all at once!)
-        throw edhttp_client_server_logic_error(
+        throw logic_error(
               "last_day_of_month called with "
             + std::to_string(year)
             + " as the year number");

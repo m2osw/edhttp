@@ -28,21 +28,26 @@ namespace edhttp
 
 
 
-DECLARE_LOGIC_ERROR(edhttp_client_server_logic_error);
+DECLARE_LOGIC_ERROR(logic_error);
+DECLARE_LOGIC_ERROR(not_implemented);
 
-DECLARE_OUT_OF_RANGE(edhttp_uri_exception_out_of_range);
+DECLARE_OUT_OF_RANGE(out_of_range);
 
 DECLARE_MAIN_EXCEPTION(edhttp_exception);
 
-DECLARE_EXCEPTION(edhttp_exception, unquotable_string);
 DECLARE_EXCEPTION(edhttp_exception, expected_token);
+DECLARE_EXCEPTION(edhttp_exception, incompatible);
+DECLARE_EXCEPTION(edhttp_exception, missing_name);
+DECLARE_EXCEPTION(edhttp_exception, name_too_large);
+DECLARE_EXCEPTION(edhttp_exception, too_many_names);
+DECLARE_EXCEPTION(edhttp_exception, unquotable_string);
 
 DECLARE_EXCEPTION(edhttp_exception, cookie_parse_exception);
 
-DECLARE_EXCEPTION(edhttp_exception, uri_exception_invalid_uri);
+DECLARE_EXCEPTION(edhttp_exception, uri_exception_exclusive_parameters);
 DECLARE_EXCEPTION(edhttp_exception, uri_exception_invalid_parameter);
 DECLARE_EXCEPTION(edhttp_exception, uri_exception_invalid_path);
-DECLARE_EXCEPTION(edhttp_exception, uri_exception_exclusive_parameters);
+DECLARE_EXCEPTION(edhttp_exception, uri_exception_invalid_uri);
 
 DECLARE_EXCEPTION(edhttp_exception, link_parse_exception);
 DECLARE_EXCEPTION(edhttp_exception, link_parameter_exception);

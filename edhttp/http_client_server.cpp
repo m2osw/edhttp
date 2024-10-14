@@ -249,7 +249,7 @@ std::string http_request::get_request(bool keep_alive) const
         request << (f_method.empty() ? g_name_edhttp_method_post : f_method.c_str())
                 << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
 
-        throw edhttp_client_server_logic_error("http_client_server.cpp:get_request(): attachments not supported yet");
+        throw logic_error("http_client_server.cpp:get_request(): attachments not supported yet");
     }
     else if(f_has_post)
     {
@@ -532,7 +532,7 @@ void http_request::set_post(std::string const & name, std::string const & value)
 {
     if(f_has_body || f_has_data)
     {
-        throw edhttp_client_server_logic_error("you cannot use set_body(), set_data(), and set_post() on the same http_request object");
+        throw logic_error("you cannot use set_body(), set_data(), and set_post() on the same http_request object");
     }
 
     // TODO: verify that the name is a valid name for a post variable
@@ -600,7 +600,7 @@ void http_request::set_data(std::string const & data)
 {
     if(f_has_post || f_has_body)
     {
-        throw edhttp_client_server_logic_error("you cannot use set_post(), set_data(), and set_body() on the same http_request object");
+        throw logic_error("you cannot use set_post(), set_data(), and set_body() on the same http_request object");
     }
 
     f_body = data;
@@ -613,7 +613,7 @@ void http_request::set_body(std::string const & body)
 {
     if(f_has_post || f_has_data)
     {
-        throw edhttp_client_server_logic_error("you cannot use set_post(), set_data(), and set_body() on the same http_request object");
+        throw logic_error("you cannot use set_post(), set_data(), and set_body() on the same http_request object");
     }
 
     f_body = body;

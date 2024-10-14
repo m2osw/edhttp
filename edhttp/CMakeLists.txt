@@ -43,6 +43,18 @@ add_library(${PROJECT_NAME} SHARED
     validator_uri.cpp
     version.cpp
     weighted_http_string.cpp
+
+    compression/archiver.cpp
+    compression/archiver_file.cpp
+    compression/compressor.cpp
+    compression/deflate.cpp
+    compression/gzip.cpp
+    compression/tar.cpp
+)
+
+target_compile_definitions(${PROJECT_NAME}
+    PUBLIC
+        ZLIB_CONST
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -88,6 +100,17 @@ install(
 
     DESTINATION
         include/edhttp
+
+    FILES_MATCHING PATTERN
+        "*.h"
+)
+
+install(
+    DIRECTORY
+        ${CMAKE_CURRENT_SOURCE_DIR}/compression/
+
+    DESTINATION
+        include/edhttp/compression
 
     FILES_MATCHING PATTERN
         "*.h"

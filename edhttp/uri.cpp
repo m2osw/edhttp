@@ -871,7 +871,7 @@ std::string uri::get_part(std::string const & name, int part) const
         {
             if(static_cast<std::size_t>(part) >= f_options.size())
             {
-                throw edhttp_uri_exception_out_of_range(
+                throw out_of_range(
                       "option "
                     + std::to_string(part)
                     + " does not exist (range is 0 to "
@@ -901,7 +901,7 @@ std::string uri::get_part(std::string const & name, int part) const
         {
             if(static_cast<std::size_t>(part) >= f_path.size())
             {
-                throw edhttp_uri_exception_out_of_range(
+                throw out_of_range(
                       "path "
                     + std::to_string(part)
                     + " is not available (range 0 to "
@@ -929,7 +929,7 @@ std::string uri::get_part(std::string const & name, int part) const
         {
             if(static_cast<std::size_t>(part) >= f_query_strings.size())
             {
-                throw edhttp_uri_exception_out_of_range(
+                throw out_of_range(
                       "query-string "
                     + std::to_string(part)
                     + " does not exist (range 0 to "
@@ -951,7 +951,7 @@ std::string uri::get_part(std::string const & name, int part) const
         {
             if(static_cast<std::size_t>(part) >= f_sub_domains.size())
             {
-                throw edhttp_uri_exception_out_of_range(
+                throw out_of_range(
                       "sub-domain "
                     + std::to_string(part)
                     + " does not exist (range 0 to "
@@ -1342,7 +1342,7 @@ std::string uri::sub_domain(int part) const
 {
     if(static_cast<std::size_t>(part) >= f_sub_domains.size())
     {
-        throw edhttp_uri_exception_out_of_range(
+        throw out_of_range(
               "sub-domain "
             + std::to_string(part)
             + " does not exist (range 0 to "
@@ -1676,7 +1676,7 @@ int uri::path_count() const
  * "journal/george" and path_folder_name(1); would still return
  * "george".
  *
- * \exception edhttp_uri_exception_out_of_range
+ * \exception out_of_range
  * This function raises this exception if the \p part parameter is
  * outside the range of folder names available. \p part should be
  * between 0 and path_count() - 1. If the path is empty, then this
@@ -1692,7 +1692,7 @@ std::string uri::path_folder_name(int part) const
 {
     if(static_cast<std::size_t>(part) >= f_path.size())
     {
-        throw edhttp_uri_exception_out_of_range(
+        throw out_of_range(
               "no path section "
             + std::to_string(part)
             + " available (range 0 to "
@@ -1823,7 +1823,7 @@ std::string uri::option(int part, std::string & name) const
 {
     if(static_cast<std::size_t>(part) >= f_options.size())
     {
-        throw edhttp_uri_exception_out_of_range(
+        throw out_of_range(
               "no option "
             + std::to_string(part)
             + " available (range 0 to "
@@ -2088,7 +2088,7 @@ std::string uri::query_option(int part, std::string& name) const
 {
     if(static_cast<std::size_t>(part) >= f_query_strings.size())
     {
-        throw edhttp_uri_exception_out_of_range(
+        throw out_of_range(
               "query-option "
             + std::to_string(part)
             + " does not exist (range 0 to "
