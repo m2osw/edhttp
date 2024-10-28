@@ -23,57 +23,36 @@
 
 // snaplogger
 //
-//#include    <snaplogger/message.h>
+#include    <snaplogger/message.h>
 
 
 // snapdev
 //
-#include <snapdev/not_used.h>
+#include    <snapdev/not_used.h>
+
+
+// C++
+//
+#include    <algorithm>
+#include    <ctime>
 
 
 // C
 //
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
-#include <zlib.h>
+#include    <zlib.h>
 #pragma GCC diagnostic pop
 
 
 // last include
 //
-#include <snapdev/poison.h>
+#include    <snapdev/poison.h>
 
 
 
 namespace edhttp
 {
-
-
-//namespace
-//{
-//
-//typedef QMap<QString, compressor_t *>   compressor_map_t;
-//typedef QMap<QString, archiver_t *>   archiver_map_t;
-//
-//// IMPORTANT NOTE:
-//// This list only makes use of bare pointers for many good reasons.
-//// (i.e. all compressors are defined statitcally, not allocated)
-//// Do not try to change it! Thank you.
-//compressor_map_t * g_compressors;
-//
-//// IMPORTANT NOTE:
-//// This list only makes use of bare pointers for many good reasons.
-//// (i.e. all archivers are defined statitcally, not allocated)
-//// Do not try to change it! Thank you.
-//archiver_map_t * g_archivers;
-//
-//int bound_level(int level, int min, int max)
-//{
-//    return level < min ? min : (level > max ? max : level);
-//}
-//
-//} // no name namespace
-
 
 
 
@@ -84,7 +63,6 @@ public:
                             deflate();
 
     virtual char const *    get_name() const override;
-    virtual char const *    get_tags() const override;
     virtual buffer_t        compress(buffer_t const & input, level_t level, bool text) override;
     virtual bool            compatible(buffer_t const & input) const override;
     virtual buffer_t        decompress(buffer_t const & input) override;
@@ -101,12 +79,6 @@ deflate::deflate()
 char const * deflate::get_name() const
 {
     return "deflate";
-}
-
-
-char const * deflate::get_tags() const
-{
-    return nullptr;
 }
 
 
@@ -137,7 +109,8 @@ buffer_t deflate::compress(buffer_t const & input, level_t level, bool text)
     if(ret != Z_OK)
     {
         // compression failed, return input as is
-        return input;
+        //
+        return input;           // LCOV_EXCL_LINE
     }
 
     // prepare to call the deflate function
@@ -155,8 +128,8 @@ buffer_t deflate::compress(buffer_t const & input, level_t level, bool text)
     ret = ::deflate(&strm, Z_FINISH);
     if(ret != Z_STREAM_END)
     {
-        deflateEnd(&strm);
-        return input;
+        deflateEnd(&strm);      // LCOV_EXCL_LINE
+        return input;           // LCOV_EXCL_LINE
     }
 
     // lose the extra size returned by deflateBound()
@@ -183,7 +156,7 @@ buffer_t deflate::decompress(buffer_t const & input)
     // our case so this function is not implemented for now...
     //
     snapdev::NOT_USED(input);
-    throw not_implemented("gzip decompress() with the uncompressed_size parameter is not implemented.");
+    throw not_implemented("deflate::decompress() without the uncompressed_size parameter is not implemented.");
 }
 
 
@@ -192,6 +165,13 @@ buffer_t deflate::decompress(buffer_t const & input, std::size_t uncompressed_si
     // by default we cannot reach this function, if we get called, then
     // the caller specifically wanted to call us, in such a case we
     // expect the size of the uncompressed data to be specified...
+
+    // if the output is an empty buffer, then we need to return an empty buffer
+    //
+    if(uncompressed_size == 0)
+    {
+        return buffer_t();
+    }
 
     // initialize the zlib stream
     //
@@ -207,9 +187,9 @@ buffer_t deflate::decompress(buffer_t const & input, std::size_t uncompressed_si
 #pragma GCC diagnostic pop
     if(ret != Z_OK)
     {
-        // compression failed, return input as is
+        // decompression failed, return input as is
         //
-        return input;
+        return input; // LCOV_EXCL_LINE
     }
 
     // prepare to call the inflate function
@@ -225,6 +205,8 @@ buffer_t deflate::decompress(buffer_t const & input, std::size_t uncompressed_si
     inflateEnd(&strm);
     if(ret != Z_STREAM_END)
     {
+        // decompression failed, return input as is
+        //
         return input;
     }
 
@@ -232,7 +214,9 @@ buffer_t deflate::decompress(buffer_t const & input, std::size_t uncompressed_si
 }
 
 
-deflate g_deflate; // create statically
+// create a static definition of the deflate compressor
+//
+deflate         g_deflate;
 
 
 

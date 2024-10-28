@@ -28,6 +28,8 @@ if(SnapCatch2_FOUND)
     add_executable(${PROJECT_NAME}
         catch_main.cpp
 
+        catch_archiver.cpp
+        catch_compressor.cpp
         catch_uri.cpp
         catch_validator.cpp
         catch_version.cpp

@@ -22,56 +22,32 @@
 
 // snaplogger
 //
-//#include    <snaplogger/message.h>
+#include    <snaplogger/message.h>
 
 
 // snapdev
 //
-//#include <snapdev/not_used.h>
+#include    <snapdev/tokenize_string.h>
+
+
+// C++
+//
+#include    <fstream>
 
 
 // C
 //
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wold-style-cast"
-#include <tar.h>
-//#pragma GCC diagnostic pop
+#include    <tar.h>
 
 
 // last include
 //
-#include <snapdev/poison.h>
+#include    <snapdev/poison.h>
 
 
 
 namespace edhttp
 {
-
-
-//namespace
-//{
-//
-//typedef QMap<QString, compressor_t *>   compressor_map_t;
-//typedef QMap<QString, archiver_t *>   archiver_map_t;
-//
-//// IMPORTANT NOTE:
-//// This list only makes use of bare pointers for many good reasons.
-//// (i.e. all compressors are defined statitcally, not allocated)
-//// Do not try to change it! Thank you.
-//compressor_map_t * g_compressors;
-//
-//// IMPORTANT NOTE:
-//// This list only makes use of bare pointers for many good reasons.
-//// (i.e. all archivers are defined statitcally, not allocated)
-//// Do not try to change it! Thank you.
-//archiver_map_t * g_archivers;
-//
-//int bound_level(int level, int min, int max)
-//{
-//    return level < min ? min : (level > max ? max : level);
-//}
-//
-//} // no name namespace
 
 
 
@@ -82,16 +58,14 @@ public:
                             tar();
 
     virtual char const *    get_name() const override;
-    virtual void            append_file(archiver_file const & file) override;
-    virtual bool            next_file(archiver_file & file) const override;
-    virtual void            rewind_file() override;
+    virtual void            append_file(archiver_archive & archive, archiver_file const & file) override;
+    virtual bool            next_file(archiver_archive & archive, archiver_file & file) const override;
+    virtual void            rewind(archiver_archive & archive) override;
 
 private:
     void                    append_int(char * header, int value, unsigned int length, int base, char fill);
     std::uint32_t           read_int(char const * header, int length, int base) const;
-    std::uint32_t           check_sum(char const * s) const;
-
-    mutable std::uint32_t   f_pos = 0;
+    std::uint32_t           check_sum(unsigned char const * s) const;
 };
 
 
@@ -99,6 +73,7 @@ tar::tar()
     : archiver("tar")
 {
 }
+
 
 char const * tar::get_name() const
 {
@@ -111,9 +86,10 @@ char const * tar::get_name() const
  * This function creates a tar header (See definition in `/usr/include/tar.h`
  * for offset, length, and more).
  *
+ * \param[in] archive  The archive being managed by this archiver.
  * \param[in] file  The archiver file to be added to this tarball.
  */
-void tar::append_file(archiver_file const & file)
+void tar::append_file(archiver_archive & archive, archiver_file const & file)
 {
     // initialize header
     //
@@ -123,21 +99,73 @@ void tar::append_file(archiver_file const & file)
     header[259] = 't';
     header[260] = 'a';
     header[261] = 'r';
-    header[262] = ' ';
-    header[263] = ' '; // version " \0"
+
+    // POSIX tar version
+    header[262] = '\0';
+    header[263] = '0';
+    header[264] = '0';
+
+    // the GNU tar magic is "ustar  \n" -- however, that does not support the prefix
+    // and that would support mtime and other times and that can include nano-seconds
+    // but many of those entries require support of handling multiple blocks
+    //header[262] = ' ';
+    //header[263] = ' '; // version " \0"
     //header[264] = '\0'; -- already '\0'
 
     // filename
     //
     std::string str(file.get_filename());
+    if(str.empty())
+    {
+        throw missing_name("a filename is required for an archive file.");
+    }
     if(str.size() > 100)
     {
-        // TODO: add support for longer filenames
-        //       (tar supports longer filename by using another block of data)
+        std::vector<std::string> segments;
+        snapdev::tokenize_string(segments, str, "/", true);
+        str.clear();
+        std::size_t pos(segments.size());
+        for(;;)
+        {
+#ifdef _DEBUG
+            if(pos == 0)
+            {
+                throw logic_error("pos cannot be reach zero in this loop."); // LCOV_EXCL_LINE
+            }
+#endif
+            --pos;
+            if(str.empty())
+            {
+                if(segments[pos].length() > 100)
+                {
+                    throw name_too_large("this file cannot be added to a tar archive at this point (filename too long).");
+                }
+                str = segments[pos];
+            }
+            else
+            {
+                if(segments[pos].length() + 1 + str.length() > 100)
+                {
+                    break;
+                }
+                str = segments[pos] + '/' + str;
+            }
+        }
+        std::copy(str.data(), str.data() + str.size(), header.begin() + 0);
+
+        // check the prefix
         //
-        throw name_too_large("this file cannot be added to a tar archive at this point (filename too long)");
+        str = snapdev::join_strings(std::vector<std::string>(segments.begin(), segments.begin() + pos + 1), "/");
+        if(str.length() > 155)
+        {
+            throw name_too_large("this prefix + file names cannot be added to a tar archive at this point (filename too long).");
+        }
+        std::copy(str.data(), str.data() + str.size(), header.begin() + 345);
     }
-    std::copy(str.data(), str.data() + str.size(), header.begin() + 0);
+    else
+    {
+        std::copy(str.data(), str.data() + str.size(), header.begin() + 0);
+    }
 
     // mode, uid, gid, mtime
     //
@@ -154,14 +182,14 @@ void tar::append_file(archiver_file const & file)
     str = file.get_user();
     if(str.length() > 32)
     {
-        throw name_too_large("this file cannot be added to a tar archive at this point (user name too long)");
+        throw name_too_large("this file cannot be added to a tar archive at this point (user name too long).");
     }
     std::copy(str.data(), str.data() + str.size(), header.begin() + 265);
 
     str = file.get_group();
     if(str.length() > 32)
     {
-        throw name_too_large("this file cannot be added to a tar archive at this point (group name too long)");
+        throw name_too_large("this file cannot be added to a tar archive at this point (group name too long).");
     }
     std::copy(str.data(), str.data() + str.size(), header.begin() + 297);
 
@@ -183,10 +211,10 @@ void tar::append_file(archiver_file const & file)
     //             are missing some types
     }
 
-    std::uint32_t checksum(check_sum(&header[0]));
+    std::uint32_t const checksum(check_sum(reinterpret_cast<unsigned char const *>(&header[0])));
     if(checksum > 32767)
     {
-        // no null in this case (very rare if at all possible)
+        // no null in this case (rather rare with "normal" filenames)
         //
         append_int(&header[148], checksum, 7, 8, '0');
     }
@@ -196,12 +224,12 @@ void tar::append_file(archiver_file const & file)
     }
     header[155] = ' ';
 
-    f_archive.insert(f_archive.end(), header.begin(), header.end());
+    archive.get().insert(archive.get().end(), header.begin(), header.end());
 
     switch(file.get_type())
     {
     case file_type_t::FILE_TYPE_REGULAR:
-        f_archive.insert(f_archive.end(), file.get_data().begin(), file.get_data().end());
+        archive.get().insert(archive.get().end(), file.get_data().begin(), file.get_data().end());
         {
             // padding to next 512 bytes
             //
@@ -210,7 +238,7 @@ void tar::append_file(archiver_file const & file)
             if(size != 0)
             {
                 std::vector<char> pad(512 - size);
-                f_archive.insert(f_archive.end(), pad.begin(), pad.end());
+                archive.get().insert(archive.get().end(), pad.begin(), pad.end());
             }
         }
         break;
@@ -223,49 +251,87 @@ void tar::append_file(archiver_file const & file)
 }
 
 
-bool tar::next_file(archiver_file & file) const
+/** \brief Read one file from \p archive.
+ *
+ * This function reads the next file from a tar archive. If the file pointer
+ * is at the end of the file, no file is read and the function returns false.
+ *
+ * \exception incompatible
+ * At the moment, the tar file can only contain directories and files. Any
+ * other type raises this exception. This exception is also raised if the
+ * file does not look like a tar file.
+ *
+ * \exception invalid_checksum
+ * If the block being checked includes "ustar" but the checksum is invalid,
+ * then this error is raised instead of the \c incompatible exception.
+ *
+ * \exception out_of_range
+ * If the tarball header says we have a file of X bytes and the archive
+ * buffer is not large enough to return X bytes of data, then this exception
+ * is raised.
+ *
+ * \param[in,out] archive  The archive being read. It is not constant because
+ * the file pointer inside the archive gets updated to the start of the next
+ * file.
+ * \param[out] file  The file object receiving the data from the next file.
+ *
+ * \return true if a file was read, false otherwise.
+ */
+bool tar::next_file(archiver_archive & archive, archiver_file & file) const
 {
     // any more files?
     // (make sure there is at least a header for now)
     //
-    if(f_pos + 512 > f_archive.size())
+    if(archive.get_pos() + 512 > archive.get().size())
     {
         return false;
     }
 
     // read the header
-    std::vector<char> header(f_archive.data() + f_pos, f_archive.data() + f_pos + 512);
+    //
+    std::span<char const> header(reinterpret_cast<char const *>(archive.get().data()) + archive.get_pos(), 512UL);
 
     // MAGIC
+    //
     if(header[257] != 'u' || header[258] != 's' || header[259] != 't' || header[260] != 'a'
     || header[261] != 'r' || (header[262] != ' ' && header[262] != '\0'))
     {
         // if no MAGIC we may have empty blocks (which are legal at the
         // end of the file)
+        //
         for(int i(0); i < 512; ++i)
         {
             if(header[i] != '\0')
             {
                 throw incompatible(
                       "ustar magic code missing at position "
-                    + std::to_string(f_pos));
+                    + std::to_string(archive.get_pos())
+                    + ".");
             }
         }
-        f_pos += 512;
+        archive.advance_pos(512);
+
         // TODO: test all the following blocks as they all should be null
         //       (as you cannot find an empty block within the tarball)
+        //
         return false;
     }
+    // TODO: check the "version" since that defines the type of archive
 
     std::uint32_t const file_checksum(read_int(&header[148], 8, 8));
-    std::uint32_t const comp_checksum(check_sum(&header[0]));
+    std::uint32_t const comp_checksum(check_sum(reinterpret_cast<unsigned char const *>(&header[0])));
     if(file_checksum != comp_checksum)
     {
-        throw incompatible(
-                "ustar checksum code does not match what was expected");
+        throw invalid_checksum(
+                "ustar checksum code ("
+              + std::to_string(comp_checksum)
+              + ") does not match what was expected ("
+              + std::to_string(file_checksum)
+              + ").");
     }
 
     std::string filename(&header[0], strnlen(&header[0], 100));
+    // Prefix is only in POSIX archives (version "00")
     if(header[345] != '\0')
     {
         // this one has a prefix (long filename)
@@ -298,7 +364,7 @@ bool tar::next_file(archiver_file & file) const
 
 
     default:
-        throw incompatible("file type in tarball not supported (we accept regular and directory files only)");
+        throw incompatible("file type in tarball not supported (we accept regular and directory files only).");
 
     }
 
@@ -313,32 +379,32 @@ bool tar::next_file(archiver_file & file) const
     file.set_user (std::string(&header[265], len_user), uid);
 
     gid_t gid(read_int(&header[116],  8, 8));
-    std::size_t const len_group(strnlen(&header[265], 32));
+    std::size_t const len_group(strnlen(&header[297], 32));
     file.set_group(std::string(&header[297], len_group), gid);
 
-    f_pos += 512;
+    archive.advance_pos(512);
 
     if(file.get_type() == file_type_t::FILE_TYPE_REGULAR)
     {
-        uint32_t const size(read_int(&header[124], 12, 8));
+        std::uint32_t const size(read_int(&header[124], 12, 8));
         int const total_size((size + 511) & -512);
-        if(f_pos + total_size > f_archive.size())
+        if(archive.get_pos() + total_size > archive.get().size())
         {
-            throw out_of_range("file data not available (archive too small)");
+            throw out_of_range("file data not available (archive too small).");
         }
-        buffer_t data(f_archive.data() + f_pos, f_archive.data() + f_pos + size);
+        std::span<buffer_t::value_type const> data(archive.get().data() + archive.get_pos(), size);
         file.set_data(data);
 
-        f_pos += total_size;
+        archive.advance_pos(total_size);
     }
 
     return true;
 }
 
 
-void tar::rewind_file()
+void tar::rewind(archiver_archive & archive)
 {
-    f_pos = 0;
+    archive.set_pos(0);
 }
 
 
@@ -348,11 +414,11 @@ void tar::append_int(char * header, int value, unsigned int length, int base, ch
     //
     do
     {
-        // base is 8 or 10
+        // base is 8 or 10 (although at the moment it's always 8)
         //
+        --length;
         header[length] = static_cast<char>((value % base) + '0');
         value /= base;
-        --length;
     }
     while(length > 0 && value != 0);
 
@@ -360,8 +426,8 @@ void tar::append_int(char * header, int value, unsigned int length, int base, ch
     //
     while(length > 0)
     {
-        header[length] = fill;
         --length;
+        header[length] = fill;
     }
 }
 
@@ -369,7 +435,7 @@ void tar::append_int(char * header, int value, unsigned int length, int base, ch
 std::uint32_t tar::read_int(char const * header, int length, int base) const
 {
     std::uint32_t result(0);
-    for(; length > 0 && *header != '\0' && *header != ' '; --length, ++header)
+    for(; length > 0 && *header >= '0' && *header < '0' + base; --length, ++header)
     {
         result = result * base + (*header - '0');
     }
@@ -377,7 +443,7 @@ std::uint32_t tar::read_int(char const * header, int length, int base) const
 }
 
 
-std::uint32_t tar::check_sum(char const * s) const
+std::uint32_t tar::check_sum(unsigned char const * s) const
 {
     std::uint32_t result = 8 * ' '; // the checksum field
 

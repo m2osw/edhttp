@@ -19,24 +19,6 @@
 
 
 
-// snaplogger
-//
-//#include    <snaplogger/message.h>
-
-
-// snapdev
-//
-//#include    <snapdev/not_used.h>
-
-
-// C
-//
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wold-style-cast"
-//#include <zlib.h>
-//#pragma GCC diagnostic pop
-
-
 // last include
 //
 #include    <snapdev/poison.h>
@@ -57,6 +39,12 @@ void archiver_file::set_type(file_type_t type)
 void archiver_file::set_data(buffer_t const & data)
 {
     f_data = data;
+}
+
+
+void archiver_file::set_data(std::span<buffer_t::value_type const> const & data)
+{
+    f_data.assign(data.data(), data.data() + data.size());
 }
 
 

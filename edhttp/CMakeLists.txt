@@ -45,7 +45,9 @@ add_library(${PROJECT_NAME} SHARED
     weighted_http_string.cpp
 
     compression/archiver.cpp
+    compression/archiver_archive.cpp
     compression/archiver_file.cpp
+    compression/bz2.cpp
     compression/compressor.cpp
     compression/deflate.cpp
     compression/gzip.cpp

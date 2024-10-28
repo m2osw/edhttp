@@ -19,32 +19,14 @@
 
 
 
-// snaplogger
-//
-//#include    <snaplogger/message.h>
-
-
-// snapdev
-//
-//#include <snapdev/not_used.h>
-
-
 // C++
 //
 #include    <ranges>
 
 
-// C
-//
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wold-style-cast"
-//#include <zlib.h>
-//#pragma GCC diagnostic pop
-
-
 // last include
 //
-#include <snapdev/poison.h>
+#include    <snapdev/poison.h>
 
 
 
@@ -101,23 +83,11 @@ archiver::~archiver()
 }
 
 
-void archiver::set_archive(buffer_t const & input)
-{
-    f_archive = input;
-}
-
-
-buffer_t const & archiver::get_archive() const
-{
-    return f_archive;
-}
-
-
 advgetopt::string_list_t archiver_list()
 {
     if(g_archivers == nullptr)
     {
-        return advgetopt::string_list_t();
+        return advgetopt::string_list_t(); // LCOV_EXCL_LINE
     }
 
     auto kv = std::views::keys(*g_archivers);

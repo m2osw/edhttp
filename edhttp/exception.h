@@ -35,19 +35,20 @@ DECLARE_OUT_OF_RANGE(out_of_range);
 
 DECLARE_MAIN_EXCEPTION(edhttp_exception);
 
+DECLARE_EXCEPTION(edhttp_exception, exclusive_parameters);
 DECLARE_EXCEPTION(edhttp_exception, expected_token);
 DECLARE_EXCEPTION(edhttp_exception, incompatible);
+DECLARE_EXCEPTION(edhttp_exception, invalid_checksum);
+DECLARE_EXCEPTION(edhttp_exception, invalid_parameter);
+DECLARE_EXCEPTION(edhttp_exception, invalid_path);
+DECLARE_EXCEPTION(edhttp_exception, invalid_token);
+DECLARE_EXCEPTION(edhttp_exception, invalid_uri);
 DECLARE_EXCEPTION(edhttp_exception, missing_name);
 DECLARE_EXCEPTION(edhttp_exception, name_too_large);
 DECLARE_EXCEPTION(edhttp_exception, too_many_names);
 DECLARE_EXCEPTION(edhttp_exception, unquotable_string);
 
 DECLARE_EXCEPTION(edhttp_exception, cookie_parse_exception);
-
-DECLARE_EXCEPTION(edhttp_exception, uri_exception_exclusive_parameters);
-DECLARE_EXCEPTION(edhttp_exception, uri_exception_invalid_parameter);
-DECLARE_EXCEPTION(edhttp_exception, uri_exception_invalid_path);
-DECLARE_EXCEPTION(edhttp_exception, uri_exception_invalid_uri);
 
 DECLARE_EXCEPTION(edhttp_exception, link_parse_exception);
 DECLARE_EXCEPTION(edhttp_exception, link_parameter_exception);

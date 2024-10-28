@@ -159,20 +159,21 @@ constexpr std::uint32_t const g_http_token[4] =
  */
 bool is_token(std::string const & token)
 {
-    int const max_len(token.length());
-    if(max_len == 0)
+    if(token.empty())
     {
-        throw cookie_parse_exception("the name of a cookie cannot be empty");
+        throw invalid_token("an HTTP token cannot be empty.");
     }
 
+    // we can have a '$' inside the name, but not at the start
+    //
     if(token[0] == '$')
     {
         return false;
     }
 
-    for(int i(0); i < max_len; ++i)
+    for(auto const t : token)
     {
-        std::uint8_t const c(static_cast<std::uint8_t>(token[i]));
+        std::uint8_t const c(static_cast<std::uint8_t>(t));
         if(c >= 127
         || (g_http_token[c >> 5] & (1 << (c & 0x1F))) == 0)
         {

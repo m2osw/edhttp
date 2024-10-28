@@ -75,9 +75,9 @@ public:
 
     // user/password
     void                        set_username(std::string const & username);
-    std::string                 get_username() const;
+    std::string const &         get_username() const;
     void                        set_password(std::string const & password);
-    std::string                 get_password() const;
+    std::string const &         get_password() const;
 
     // scheme handling
     void                        set_scheme(std::string const & uri_scheme);
@@ -110,6 +110,7 @@ public:
     std::string                 path_folder_name(int part) const;
     advgetopt::string_list_t const &
                                 path_list() const;
+    std::string                 hash_bang_path(bool encoded = true) const;
 
     // option handling
     void                        set_option(std::string const & name, std::string const & value);
@@ -148,7 +149,12 @@ public:
     static int                  scheme_to_port(std::string const & uri_scheme);
 
 private:
-    bool                        process_domain(std::string const & full_domain_name, advgetopt::string_list_t & sub_domain_names, std::string & domain_name, std::string & tld);
+    bool                        process_domain(
+                                      std::string const & full_domain_name
+                                    , advgetopt::string_list_t & sub_domain_names
+                                    , std::string & domain_name
+                                    , std::string & tld);
+    bool                        clean_path(advgetopt::string_list_t & path_segments);
 
     // f_original is the unchanged source (from constructor or
     // last set_uri() call)
@@ -161,6 +167,7 @@ private:
     std::string                 f_top_level_domain = std::string();
     advgetopt::string_list_t    f_sub_domains = advgetopt::string_list_t();
     advgetopt::string_list_t    f_path = advgetopt::string_list_t();
+    advgetopt::string_list_t    f_hash_bang_path = advgetopt::string_list_t();
     uri_options_t               f_options = uri_options_t();
     uri_options_t               f_query_strings = uri_options_t();
     std::string                 f_anchor = std::string();

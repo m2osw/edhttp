@@ -22,57 +22,35 @@
 
 // snaplogger
 //
-//#include    <snaplogger/message.h>
+#include    <snaplogger/message.h>
 
 
 // snapdev
 //
-#include <snapdev/not_used.h>
+#include    <snapdev/not_used.h>
+
+
+// C++
+//
+#include    <algorithm>
 
 
 // C
 //
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
-#include <zlib.h>
+#include    <zlib.h>
 #pragma GCC diagnostic pop
 
 
 // last include
 //
-#include <snapdev/poison.h>
+#include    <snapdev/poison.h>
 
 
 
 namespace edhttp
 {
-
-
-//namespace
-//{
-//
-//typedef QMap<QString, compressor_t *>   compressor_map_t;
-//typedef QMap<QString, archiver_t *>   archiver_map_t;
-//
-//// IMPORTANT NOTE:
-//// This list only makes use of bare pointers for many good reasons.
-//// (i.e. all compressors are defined statitcally, not allocated)
-//// Do not try to change it! Thank you.
-//compressor_map_t * g_compressors;
-//
-//// IMPORTANT NOTE:
-//// This list only makes use of bare pointers for many good reasons.
-//// (i.e. all archivers are defined statitcally, not allocated)
-//// Do not try to change it! Thank you.
-//archiver_map_t * g_archivers;
-//
-//int bound_level(int level, int min, int max)
-//{
-//    return level < min ? min : (level > max ? max : level);
-//}
-//
-//} // no name namespace
-
 
 
 
@@ -92,7 +70,6 @@ public:
                             gzip();
 
     virtual char const *    get_name() const override;
-    virtual char const *    get_tags() const override;
     virtual buffer_t        compress(buffer_t const & input, level_t level, bool text) override;
     virtual bool            compatible(buffer_t const & input) const override;
     virtual buffer_t        decompress(buffer_t const & input) override;
@@ -109,12 +86,6 @@ gzip::gzip()
 char const * gzip::get_name() const
 {
     return "gzip";
-}
-
-
-char const * gzip::get_tags() const
-{
-    return ",http,prinbee,";
 }
 
 
@@ -143,7 +114,8 @@ buffer_t gzip::compress(buffer_t const & input, level_t level, bool text)
     if(ret != Z_OK)
     {
         // compression failed, return input as is
-        return input;
+        //
+        return input;   // LCOV_EXCL_LINE
     }
 
     // initialize the gzip header
@@ -157,8 +129,8 @@ buffer_t gzip::compress(buffer_t const & input, level_t level, bool text)
     ret = deflateSetHeader(&strm, &header);
     if(ret != Z_OK)
     {
-        deflateEnd(&strm);
-        return input;
+        deflateEnd(&strm);      // LCOV_EXCL_LINE
+        return input;           // LCOV_EXCL_LINE
     }
 
     // prepare to call the deflate function
@@ -177,8 +149,8 @@ buffer_t gzip::compress(buffer_t const & input, level_t level, bool text)
     ret = deflate(&strm, Z_FINISH);
     if(ret != Z_STREAM_END)
     {
-        deflateEnd(&strm);
-        return input;
+        deflateEnd(&strm);      // LCOV_EXCL_LINE
+        return input;           // LCOV_EXCL_LINE
     }
 
     // lose the extra size returned by deflateBound()
@@ -221,7 +193,7 @@ buffer_t gzip::decompress(buffer_t const & input)
         // decompression failed, return input as is assuming it was not
         // compressed maybe...
         //
-        return input;
+        return input; // LCOV_EXCL_LINE
     }
 
     // Unfortunately the zlib support for the gzip header does not help
@@ -239,10 +211,29 @@ buffer_t gzip::decompress(buffer_t const & input)
 
     // The size is saved in the last 4 bytes in little endian
     //
+    if(strm.avail_in < 4)
+    {
+        // not enough data!?
+        //
+        inflateEnd(&strm);
+        return input;
+    }
     std::size_t const uncompressed_size(input[strm.avail_in - 4]
             | (input[strm.avail_in - 3] << 8)
             | (input[strm.avail_in - 2] << 16)
             | (input[strm.avail_in - 1] << 24));
+    if(uncompressed_size >= 10UL * 1024UL * 1024UL * 1024UL)
+    {
+        // more than 10Gb!?
+        //
+        inflateEnd(&strm);
+        return input;
+    }
+    if(uncompressed_size == 0)
+    {
+        inflateEnd(&strm);
+        return buffer_t();
+    }
 
     // prepare to call the inflate function (to do it in one go!)
     //
@@ -267,7 +258,7 @@ buffer_t gzip::decompress(buffer_t const & input)
 buffer_t gzip::decompress(buffer_t const & input, std::size_t uncompressed_size)
 {
     snapdev::NOT_USED(input, uncompressed_size);
-    throw not_implemented("gzip decompress() is not implemented.");
+    throw not_implemented("gzip::decompress() with a size is not implemented.");
 }
 
 

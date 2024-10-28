@@ -16,8 +16,7 @@
 
 // self
 //
-#include    <edhttp/compression/archiver_archive.h>
-#include    <edhttp/compression/archiver_file.h>
+#include    <edhttp/compression/compressor.h>
 
 
 
@@ -26,22 +25,21 @@ namespace edhttp
 
 
 
-class archiver
+class archiver_archive
 {
 public:
-                            archiver(char const * name);
-    virtual                 ~archiver();
+    buffer_t &              get();
+    buffer_t const &        get() const;
+    void                    set(buffer_t const & input);
 
-    virtual char const *    get_name() const = 0;
+    std::size_t             get_pos() const;
+    void                    set_pos(std::size_t pos);
+    void                    advance_pos(std::size_t offset);
 
-    virtual void            append_file(archiver_archive & archive, archiver_file const & file) = 0;
-    virtual bool            next_file(archiver_archive & archive, archiver_file & file) const = 0;
-    virtual void            rewind(archiver_archive & archive) = 0;
+protected:
+    buffer_t                f_archive = buffer_t();
+    std::size_t             f_pos = 0;
 };
-
-
-advgetopt::string_list_t    archiver_list();
-archiver *                  get_archiver(std::string const & archiver_name);
 
 
 

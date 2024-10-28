@@ -14,12 +14,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-// self
-//
-//#include    "snapwebsites/snap_string_list.h"
-
-
-
 // advgetopt
 //
 #include    <advgetopt/utils.h>
@@ -27,13 +21,7 @@
 
 // C++
 //
-//#include    <string>
-//#include    <vector>
-
-
-// C
-//
-//#include <unistd.h>
+#include    <cstdint>
 
 
 
@@ -43,36 +31,43 @@ namespace edhttp
 
 
 // compression level is a percent (a number from 0 to 100)
+//
 typedef std::uint8_t                    level_t;
 
 
 // a buffer is an array of bytes
+//
 typedef std::vector<std::uint8_t>       buffer_t;
 
 
+// result from a compress() call, the compressed buffer and the name of
+// the compressor used to compress it
+//
+typedef std::pair<buffer_t, std::string>    result_t;
+
+
 // all compressors derive from this interface
+//
 class compressor
 {
 public:
-    static char const * BEST_COMPRESSION;
     static char const * NO_COMPRESSION;
 
                         compressor(char const * name);
     virtual             ~compressor();
 
     virtual char const *get_name() const = 0;
-    virtual char const *get_tags() const = 0;
     virtual buffer_t    compress(buffer_t const & input, level_t level, bool text) = 0;
     virtual bool        compatible(buffer_t const & input) const = 0;
     virtual buffer_t    decompress(buffer_t const & input) = 0;
-    virtual buffer_t    decompress(buffer_t const & input, size_t uncompressed_size) = 0;
+    virtual buffer_t    decompress(buffer_t const & input, std::size_t uncompressed_size) = 0;
 };
 
 
-advgetopt::string_list_t    compressor_list();
-compressor *                get_compressor(std::string const & compressor_name);
-buffer_t                    compress(std::string & compressor_name, buffer_t const & input, level_t level, bool text = false);
-buffer_t                    decompress(std::string & compressor_name, buffer_t const & input);
+advgetopt::string_list_t        compressor_list();
+compressor *                    get_compressor(std::string const & compressor_name);
+result_t                        compress(advgetopt::string_list_t const & compressor_names, buffer_t const & input, level_t level, bool text = false);
+result_t                        decompress(buffer_t const & input);
 
 
 

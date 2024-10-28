@@ -10,4 +10,6 @@
   - read a file to determine the normalizations
   - the format of the file can define a "group" (i.e. user agent, browser
     version, etc.)
+* Look into making the list of tags dynamic so new libraries can register
+  themselves (i.e. prinbee for gzip)
 

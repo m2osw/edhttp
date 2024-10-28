@@ -25,9 +25,9 @@
 #include    <snapdev/timespec_ex.h>
 
 
-// C
+// C++
 //
-//#include <unistd.h>
+#include    <span>
 
 
 
@@ -48,6 +48,7 @@ class archiver_file
 public:
     void                    set_type(file_type_t type);
     void                    set_data(buffer_t const & data);
+    void                    set_data(std::span<buffer_t::value_type const> const & data);
     void                    set_filename(std::string const & filename);
     void                    set_user(std::string const & user, uid_t uid);
     void                    set_group(std::string const & group, gid_t gid);

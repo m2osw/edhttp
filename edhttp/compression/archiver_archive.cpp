@@ -12,12 +12,16 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#pragma once
 
 // self
 //
-#include    <edhttp/compression/archiver_archive.h>
-#include    <edhttp/compression/archiver_file.h>
+#include    "edhttp/compression/archiver_archive.h"
+
+
+
+// last include
+//
+#include    <snapdev/poison.h>
 
 
 
@@ -26,22 +30,40 @@ namespace edhttp
 
 
 
-class archiver
+buffer_t & archiver_archive::get()
 {
-public:
-                            archiver(char const * name);
-    virtual                 ~archiver();
-
-    virtual char const *    get_name() const = 0;
-
-    virtual void            append_file(archiver_archive & archive, archiver_file const & file) = 0;
-    virtual bool            next_file(archiver_archive & archive, archiver_file & file) const = 0;
-    virtual void            rewind(archiver_archive & archive) = 0;
-};
+    return f_archive;
+}
 
 
-advgetopt::string_list_t    archiver_list();
-archiver *                  get_archiver(std::string const & archiver_name);
+buffer_t const & archiver_archive::get() const
+{
+    return f_archive;
+}
+
+
+void archiver_archive::set(buffer_t const & input)
+{
+    f_archive = input;
+}
+
+
+std::size_t archiver_archive::get_pos() const
+{
+    return f_pos;
+}
+
+
+void archiver_archive::set_pos(std::size_t pos)
+{
+    f_pos = pos;
+}
+
+
+void archiver_archive::advance_pos(std::size_t offset)
+{
+    f_pos += offset;
+}
 
 
 
