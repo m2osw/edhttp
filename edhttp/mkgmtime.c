@@ -42,6 +42,7 @@
 #include    "edhttp/mkgmtime.h"
 
 #include    <stdlib.h>
+#include    <stdio.h>
 
 #define _SEC_IN_MINUTE 60L
 #define _SEC_IN_HOUR 3600L
@@ -109,7 +110,9 @@ static void validate_structure(struct tm *tim_p)
     }
 
   if (_DAYS_IN_YEAR (tim_p->tm_year) == 366)
-    days_in_feb = 29;
+    {
+      days_in_feb = 29;
+    }
 
   if (tim_p->tm_mday <= 0)
     {
@@ -152,6 +155,12 @@ time_t mkgmtime(struct tm *tim_p)
   /* validate structure */
   validate_structure (tim_p);
 
+  if (tim_p->tm_year > 10000
+      || tim_p->tm_year < -10000)
+    {
+      return (time_t) -1;
+    }
+
   /* compute hours, minutes, seconds */
   tim += tim_p->tm_sec + (tim_p->tm_min * _SEC_IN_MINUTE) +
     (tim_p->tm_hour * _SEC_IN_HOUR);
@@ -160,33 +169,35 @@ time_t mkgmtime(struct tm *tim_p)
   days += tim_p->tm_mday - 1;
   days += _DAYS_BEFORE_MONTH[tim_p->tm_mon];
   if (tim_p->tm_mon > 1 && _DAYS_IN_YEAR (tim_p->tm_year) == 366)
-    days++;
-
-  /* compute day of the year */
-  tim_p->tm_yday = days;
-
-  if (tim_p->tm_year > 10000
-      || tim_p->tm_year < -10000)
     {
-      return (time_t) -1;
+      days++;
     }
+
+  /* save days in year */
+  tim_p->tm_yday = days;
 
   /* compute days in other years */
   if (tim_p->tm_year > 70)
     {
       for (year = 70; year < tim_p->tm_year; year++)
-        days += _DAYS_IN_YEAR (year);
+        {
+          days += _DAYS_IN_YEAR (year);
+        }
     }
   else if (tim_p->tm_year < 70)
     {
       for (year = 69; year > tim_p->tm_year; year--)
-        days -= _DAYS_IN_YEAR (year);
+        {
+          days -= _DAYS_IN_YEAR (year);
+        }
       days -= _DAYS_IN_YEAR (year);
     }
 
   /* compute day of the week */
   if ((tim_p->tm_wday = (days + 4) % 7) < 0)
-    tim_p->tm_wday += 7;
+    {
+      tim_p->tm_wday += 7;
+    }
 
   /* compute total seconds */
   tim += (days * _SEC_IN_DAY);
@@ -195,7 +206,7 @@ time_t mkgmtime(struct tm *tim_p)
   tm_isdst = tim_p->tm_isdst > 0  ?  1 : tim_p->tm_isdst;
   isdst = tm_isdst;
 
-  //screw this!
+  // ignore the daylight time, with UTC, it's not useful
 
  // if (_daylight)
  //   {
@@ -240,14 +251,12 @@ time_t mkgmtime(struct tm *tim_p)
         //}
  //   }
 
-  //screw this also 
   /* add appropriate offset to put time in gmt format */
   //if (isdst == 1)
   //  tim += (time_t) tz->__tzrule[1].offset;
   //else /* otherwise assume std time */
   //  tim += (time_t) tz->__tzrule[0].offset;
 
-  //and screw this too
   /* reset isdst flag to what we have calculated */
   tim_p->tm_isdst = isdst;
 

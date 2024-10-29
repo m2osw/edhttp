@@ -210,11 +210,20 @@ CATCH_TEST_CASE("compressor_bz2", "[compression]")
             // generate a random buffer to compress of 1kb to 16kb in size
             //
             auto input(SNAP_CATCH2_NAMESPACE::random_buffer(size, size));
-            if(size >= 4)
+            if(size >= 1)
             {
                 input[0] = 'B';
+            }
+            if(size >= 2)
+            {
                 input[1] = 'Z';
+            }
+            if(size >= 3)
+            {
                 input[2] = 'h';
+            }
+            if(size >= 4)
+            {
                 input[3] = rand() % 10 + '0';
             }
             CATCH_REQUIRE_FALSE(bz2->compatible(input));
@@ -483,9 +492,12 @@ CATCH_TEST_CASE("compressor_gzip", "[compression]")
             // generate a random buffer to compress of 1kb to 16kb in size
             //
             auto input(SNAP_CATCH2_NAMESPACE::random_buffer(size, size));
-            if(size >= 2)
+            if(size >= 1)
             {
                 input[0] = 0x1F;
+            }
+            if(size >= 2)
+            {
                 input[1] = 0x8B;
             }
             CATCH_REQUIRE_FALSE(gzip->compatible(input));
@@ -506,12 +518,192 @@ CATCH_TEST_CASE("compressor_gzip", "[compression]")
         {
             edhttp::buffer_t const compressed(gzip->compress(empty, level, false));
 
-            // an empty buffer can be "compressed" (the output is bigger, but it
-            // does not fail)
+            // an empty buffer can be "compressed" (but the output is bigger,
+            // yet it does not fail with gzip)
             //
             //CATCH_REQUIRE(empty == compressed);
 
             edhttp::buffer_t const decompressed(gzip->decompress(compressed));
+            CATCH_REQUIRE(empty == decompressed);
+        }
+    }
+    CATCH_END_SECTION()
+}
+
+
+CATCH_TEST_CASE("compressor_xz", "[compression]")
+{
+    CATCH_START_SECTION("compressor_xz: verify xz compressor")
+    {
+        // use a text file (this very file) because that compresses well
+        //
+        snapdev::file_contents source(SNAP_CATCH2_NAMESPACE::g_source_dir() + "/tests/catch_compressor.cpp");
+        CATCH_REQUIRE(source.read_all());
+        std::string const data(source.contents());
+        edhttp::buffer_t const input(data.begin(), data.end());
+
+        edhttp::compressor * xz(edhttp::get_compressor("xz"));
+        CATCH_REQUIRE(xz != nullptr);
+        CATCH_REQUIRE(strcmp(xz->get_name(), "xz") == 0);
+
+        for(edhttp::level_t level(0); level <= 100; level += 10)
+        {
+            edhttp::buffer_t const compressed(xz->compress(input, level, rand() & 1 == 0));
+
+            bool equal(true);
+            if(compressed.size() == input.size())
+            {
+                for(std::size_t pos(0); pos < compressed.size(); ++pos)
+                {
+                    if(compressed[pos] != input[pos])
+                    {
+                        equal = false;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                equal = false;
+            }
+            CATCH_REQUIRE_FALSE(equal);
+
+            edhttp::buffer_t const decompressed(xz->decompress(compressed));
+            CATCH_REQUIRE(decompressed.size() == input.size());
+
+            equal = true;
+            for(std::size_t pos(0); pos < decompressed.size(); ++pos)
+            {
+                if(decompressed[pos] != input[pos])
+                {
+                    equal = false;
+                    break;
+                }
+            }
+            CATCH_REQUIRE(equal);
+
+            for(std::size_t s(2); s < 9; ++s)
+            {
+                edhttp::buffer_t const broken_compressed_small(compressed.data(), compressed.data() + s);
+                edhttp::buffer_t const compressed_repeat(xz->decompress(broken_compressed_small));
+                CATCH_REQUIRE(compressed_repeat == broken_compressed_small);
+            }
+
+            // we do recognize a xz buffer
+            //
+            CATCH_REQUIRE_FALSE(xz->compatible(input));
+            CATCH_REQUIRE(xz->compatible(compressed));
+            CATCH_REQUIRE_FALSE(xz->compatible(decompressed));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("compressor_xz: verify small buffers with xz compressor")
+    {
+        edhttp::compressor * xz(edhttp::get_compressor("xz"));
+        CATCH_REQUIRE(xz != nullptr);
+
+        // generate a random buffer to compress of 1kb to 16kb in size
+        //
+        for(int size(1); size < 20; ++size)
+        {
+            auto const input(SNAP_CATCH2_NAMESPACE::random_buffer(size, size));
+            edhttp::buffer_t const compressed(xz->compress(input, rand() % 95 + 5, rand() & 1 == 0));
+
+            bool equal(true);
+            if(compressed.size() == input.size())
+            {
+                for(std::size_t pos(0); pos < compressed.size(); ++pos)
+                {
+                    if(compressed[pos] != input[pos])
+                    {
+                        equal = false;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                equal = false;
+            }
+            CATCH_REQUIRE_FALSE(equal);
+
+            edhttp::buffer_t const decompressed(xz->decompress(compressed));
+            CATCH_REQUIRE(decompressed.size() == input.size());
+
+            equal = true;
+            for(std::size_t pos(0); pos < decompressed.size(); ++pos)
+            {
+                if(decompressed[pos] != input[pos])
+                {
+                    equal = false;
+                    break;
+                }
+            }
+            CATCH_REQUIRE(equal);
+
+            // we do recognize a xz buffer
+            //
+            CATCH_REQUIRE(xz->compatible(compressed));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("compressor_xz: verify invalid xz magic length")
+    {
+        edhttp::compressor * xz(edhttp::get_compressor("xz"));
+        CATCH_REQUIRE(xz != nullptr);
+        CATCH_REQUIRE(strcmp(xz->get_name(), "xz") == 0);
+
+        for(std::size_t size(0); size < 10; ++size)
+        {
+            // generate a random buffer to compress of 1kb to 16kb in size
+            //
+            auto input(SNAP_CATCH2_NAMESPACE::random_buffer(size, size));
+            if(size >= 1)
+            {
+                input[0] = 0xFD;
+            }
+            if(size >= 2)
+            {
+                input[1] = '7';
+            }
+            if(size >= 3)
+            {
+                input[2] = 'z';
+            }
+            if(size >= 4)
+            {
+                input[3] = 'X';
+            }
+            if(size >= 5)
+            {
+                input[4] = 'Z';
+            }
+            CATCH_REQUIRE_FALSE(xz->compatible(input));
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("compressor_xz: attempt xz compressing an empty buffer")
+    {
+        edhttp::compressor * xz(edhttp::get_compressor("xz"));
+        CATCH_REQUIRE(xz != nullptr);
+        CATCH_REQUIRE(strcmp(xz->get_name(), "xz") == 0);
+
+        edhttp::buffer_t const empty;
+        CATCH_REQUIRE_FALSE(xz->compatible(empty));
+
+        for(edhttp::level_t level(0); level <= 120; level += rand() % 10 + 1)
+        {
+            edhttp::buffer_t const compressed(xz->compress(empty, level, false));
+
+            // an empty buffer cannot be "compressed" (the output is bigger,
+            // but it does not fail)
+            //
+            //CATCH_REQUIRE(empty == compressed);
+
+            edhttp::buffer_t const decompressed(xz->decompress(compressed));
             CATCH_REQUIRE(empty == decompressed);
         }
     }
@@ -525,13 +717,14 @@ CATCH_TEST_CASE("compressor", "[compression]")
     {
         advgetopt::string_list_t const list(edhttp::compressor_list());
 
-        CATCH_REQUIRE(list.size() == 3);
+        CATCH_REQUIRE(list.size() == 4);
 
         // internally it's in a map so it remains sorted
         //
         CATCH_REQUIRE(list[0] == "bz2");
         CATCH_REQUIRE(list[1] == "deflate");
         CATCH_REQUIRE(list[2] == "gzip");
+        CATCH_REQUIRE(list[3] == "xz");
 
         for(auto const & name : list)
         {
@@ -618,6 +811,20 @@ CATCH_TEST_CASE("compressor", "[compression]")
         {
             edhttp::buffer_t const buffer(SNAP_CATCH2_NAMESPACE::random_buffer(1, i));
             edhttp::result_t const compressed(edhttp::compress({"gzip"}, buffer, rand() % 96 + 5, rand() % 1 == 0));
+            CATCH_REQUIRE(compressed.first == buffer);
+            CATCH_REQUIRE(compressed.second == edhttp::compressor::NO_COMPRESSION);
+        }
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("compressor: compress() small buffers with xz return input")
+    {
+        // compress() with a small buffer ignores the other parameters
+        //
+        for(int i(1); i < 10; ++i)
+        {
+            edhttp::buffer_t const buffer(SNAP_CATCH2_NAMESPACE::random_buffer(1, i));
+            edhttp::result_t const compressed(edhttp::compress({"xz"}, buffer, rand() % 96 + 5, rand() % 1 == 0));
             CATCH_REQUIRE(compressed.first == buffer);
             CATCH_REQUIRE(compressed.second == edhttp::compressor::NO_COMPRESSION);
         }
@@ -839,6 +1046,23 @@ CATCH_TEST_CASE("compressor_error", "[compression][error]")
                 , edhttp::not_implemented
                 , Catch::Matchers::ExceptionMessage(
                           "not_implemented: gzip::decompress() with a size is not implemented."));
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("compressor_error: xz decompress() does not support a size")
+    {
+        edhttp::compressor * gzip(edhttp::get_compressor("xz"));
+        CATCH_REQUIRE(gzip != nullptr);
+        CATCH_REQUIRE(strcmp(gzip->get_name(), "xz") == 0);
+
+        // generate a random buffer to compress of 1kb to 16kb in size
+        //
+        auto const buffer(SNAP_CATCH2_NAMESPACE::random_buffer(1024, 1024 * 16));
+        CATCH_REQUIRE_THROWS_MATCHES(
+                  gzip->decompress(buffer, buffer.size())
+                , edhttp::not_implemented
+                , Catch::Matchers::ExceptionMessage(
+                          "not_implemented: xz::decompress() with a size is not implemented."));
     }
     CATCH_END_SECTION()
 

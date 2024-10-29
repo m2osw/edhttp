@@ -52,6 +52,7 @@ add_library(${PROJECT_NAME} SHARED
     compression/deflate.cpp
     compression/gzip.cpp
     compression/tar.cpp
+    compression/xz.cpp
 )
 
 target_compile_definitions(${PROJECT_NAME}
