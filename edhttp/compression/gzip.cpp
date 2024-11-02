@@ -35,6 +35,10 @@
 #include    <algorithm>
 
 
+#include <algorithm>
+#include <ctime>
+
+
 // C
 //
 #pragma GCC diagnostic push
