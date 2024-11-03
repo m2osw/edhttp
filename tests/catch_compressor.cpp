@@ -47,6 +47,11 @@
 #include    <snaplogger/message.h>
 
 
+// C++
+//
+#include    <random>
+
+
 // last include
 //
 #include    <snapdev/poison.h>
@@ -960,7 +965,9 @@ CATCH_TEST_CASE("compressor", "[compression]")
             {
                 names.push_back("bz2");
                 names.push_back("gzip");
-                std::random_shuffle(names.begin(), names.end());
+                std::random_device rd;
+                std::mt19937 g(rd());
+                std::shuffle(names.begin(), names.end(), g);
             }
             edhttp::result_t const compressed(edhttp::compress({}, buffer, rand() % 96 + 5, true));
             if(compressed.second == edhttp::compressor::NO_COMPRESSION)
