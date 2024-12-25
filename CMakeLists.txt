@@ -48,6 +48,7 @@ include_directories(
 ## Compiling
 ##
 add_subdirectory(edhttp)            # Library
+add_subdirectory(tools)             # Tools
 add_subdirectory(tests)             # Tests
 add_subdirectory(cmake)             # CMake Config
 add_subdirectory(doc)               # Documentation
