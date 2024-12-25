@@ -1,6 +1,7 @@
 edhttp (1.1.0.0~jammy) jammy; urgency=high
 
   * Moved the compression functions from libsnapwebsites.
+  * Added a tool to list available compressors & archivers.
 
  -- Alexis Wilke <alexis@m2osw.com>  Mon, 14 Oct 2024 21:08:51 -0700
 
