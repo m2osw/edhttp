@@ -21,7 +21,7 @@
 #include    "edhttp/quoted_printable.h"
 
 
-// snapdev lib
+// snapdev
 //
 #include    <snapdev/not_reached.h>
 

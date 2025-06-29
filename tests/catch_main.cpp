@@ -24,22 +24,22 @@
 #include    "catch_main.h"
 
 
-// edhttp lib
+// edhttp
 //
 #include    <edhttp/version.h>
 
 
-// libexcept lib
+// libexcept
 //
 #include    <libexcept/exception.h>
 
 
-// snaplogger lib
+// snaplogger
 //
 #include    <snaplogger/logger.h>
 
 
-// C++ lib
+// C++
 //
 #include    <sstream>
 

@@ -18,12 +18,12 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #pragma once
 
-// catch2 lib
+// catch2
 //
 #include    <catch2/snapcatch2.hpp>
 
 
-// C++ lib
+// C++
 //
 #include    <string>
 #include    <cstring>

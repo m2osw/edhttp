@@ -23,7 +23,7 @@
 #include    "edhttp/exception.h"
 
 
-// C lib
+// C
 //
 #include    <magic.h>
 
