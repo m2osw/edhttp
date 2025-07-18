@@ -12,4 +12,11 @@
     version, etc.)
 * Look into making the list of tags dynamic so new libraries can register
   themselves (i.e. prinbee for gzip)
+* Look at the following lists as those represent robots and thus we can avoid
+  extra work whenever such connects to us; also if we were to add advertising
+  and such on a page, we do not want to do it if the IP is present in one of
+  those files or the user agent is clearly representing a robot
+  - https://github.com/opawg/user-agents-v2/blob/master/src/apps.json
+  - https://ip-ranges.amazonaws.com/ip-ranges.json
+  - https://www.gstatic.com/ipranges/goog.json
 
