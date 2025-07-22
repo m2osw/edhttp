@@ -1,4 +1,4 @@
-edhttp (1.1.0.0~noble) jammy; urgency=high
+edhttp (1.1.0.0~noble) noble; urgency=high
 
   * Moved the compression functions from libsnapwebsites.
   * Added a tool to list available compressors & archivers.
