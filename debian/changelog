@@ -1,3 +1,9 @@
+edhttp (1.1.0.1~jammy) jammy; urgency=high
+
+  * Bumped build version to rebuild on Launchpad.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Tue, 22 Jul 2025 07:45:03 -0700
+
 edhttp (1.1.0.0~noble) noble; urgency=high
 
   * Moved the compression functions from libsnapwebsites.
