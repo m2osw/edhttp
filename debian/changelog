@@ -1,4 +1,4 @@
-edhttp (1.1.0.1~jammy) jammy; urgency=high
+edhttp (1.1.0.1~noble) noble; urgency=high
 
   * Bumped build version to rebuild on Launchpad.
 
