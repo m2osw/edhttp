@@ -100,7 +100,7 @@ http_cookie::http_cookie()
  *
  * \note
  * The name of a cookie is case sensitive. In other words cookie "foo" and
- * cookie "Foo" can cohexist (although it certainly should not be used!)
+ * cookie "Foo" can coexist (although it certainly should not be used!)
  *
  * \warning
  * The cookie domain cannot be determined without a pointer to the snap
@@ -114,9 +114,8 @@ http_cookie::http_cookie()
  * We should have a way to retrieve the primary domain name for this
  * purpose.
  *
- * \param[in] snap  The snap child creating this cookie.
  * \param[in] name  The name of the cookie.
- * \param[in] value  The value of the cookie. To set a binary value, use set_value() with a QByteArray instead.
+ * \param[in] value  The value of the cookie. It can be binary data.
  *
  * \sa set_value()
  * \sa set_domain()
@@ -136,11 +135,11 @@ http_cookie::http_cookie(std::string const & name, std::string const & value)
 {
     if(!is_token(f_name))
     {
-        throw cookie_parse_exception("cookie name cannot be empty, start with '$', or icnlude a reserved character.");
+        throw cookie_parse_exception("cookie name cannot be empty, start with '$', or include a reserved character.");
     }
 
-    // TODO: here f_snap would always be nullptr but in snap we still need
-    //       to fix this
+    // TODO: here f_snap would always be nullptr but in snap we could
+    //       determine a cookie domain in this way
     //
     //if(f_snap)
     //{
@@ -169,8 +168,7 @@ http_cookie::http_cookie(std::string const & name, std::string const & value)
  * The value is encoded using the usual urlencode mechanism
  * as to avoid problems with controls and other data.
  *
- * We support binary data by calling the set_value() with
- * the QByteArray parameter.
+ * The string can include absolute any bytes.
  *
  * \param[in] value  The new value of the cookie.
  */
@@ -468,9 +466,9 @@ void http_cookie::set_comment(std::string const & comment)
  * This function sets the comment URL of the cookie. This is actually
  * made mandatory in the Snap! webserver.
  *
- * \param[in] comment_url  The URL to a page tha explains the cookie usage.
+ * \param[in] comment_uri  The URL to a page tha explains the cookie usage.
  *
- * \sa get_comment_url();
+ * \sa get_comment_uri();
  */
 void http_cookie::set_comment_uri(std::string const & comment_uri)
 {
@@ -652,7 +650,7 @@ std::string const & http_cookie::get_comment() const
  *
  * \return The comment URL of the cookie.
  *
- * \sa set_comment_url();
+ * \sa set_comment_uri();
  */
 std::string const & http_cookie::get_comment_uri() const
 {

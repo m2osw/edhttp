@@ -45,7 +45,6 @@ namespace edhttp
  *
  * This function initializes the link.
  *
- * \param[in] snap  The snap child creating this link.
  * \param[in] link  The URI for this link.
  * \param[in] rel  What the link represents (relative).
  *
@@ -66,8 +65,7 @@ http_link::http_link(std::string const & link, std::string const & rel)
     uri u;
     if(!u.set_uri(f_link))
     {
-        // the snap_uri uses libtld so we arrive here if the TLD is not
-        // considered valid
+        // the uri class verifies the TLD with libtld
         //
         throw link_parse_exception("link URI is not valid.");
     }
