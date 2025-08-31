@@ -22,12 +22,12 @@
 ##
 project(edhttp-documentation)
 
-find_package(SnapDoxygen QUIET)
-AddDoxygenTarget(edhttp
+find_package(SnapDoxygen)
+AddDoxygenTarget(
+    edhttp
     ${EDHTTP_VERSION_MAJOR}
     ${EDHTTP_VERSION_MINOR}
     ${EDHTTP_VERSION_PATCH}
-    QUIET
 )
 
 # vim: ts=4 sw=4 et nocindent
