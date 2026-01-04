@@ -136,7 +136,13 @@ std::string validator_uri::name() const
 bool validator_uri::validate(std::string const & value) const
 {
     uri u;
-    return u.set_uri(value, f_accept_path, f_accept_ip);
+    if(u.set_uri(value, f_accept_path, f_accept_ip))
+    {
+        return true;
+    }
+
+    set_error(u.get_last_error_message());
+    return false;
 }
 
 
