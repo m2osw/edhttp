@@ -1,3 +1,10 @@
+edhttp (1.1.1.0~noble) noble; urgency=high
+
+  * Tweaked URL validator to return useful error messages.
+  * Enhanced the doxygen documentation setup.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Sat, 15 Aug 2026 13:09:29 -0700
+
 edhttp (1.1.0.1~noble) noble; urgency=high
 
   * Bumped build version to rebuild on Launchpad.
