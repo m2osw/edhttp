@@ -30,7 +30,6 @@ if(SnapCatch2_FOUND)
 
         catch_archiver.cpp
         catch_compressor.cpp
-        catch_mkgmtime.cpp
         catch_uri.cpp
         catch_validator.cpp
         catch_version.cpp

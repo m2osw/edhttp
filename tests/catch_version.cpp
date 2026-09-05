@@ -34,7 +34,7 @@
 
 CATCH_TEST_CASE("version", "[version][valid]")
 {
-    CATCH_START_SECTION("Verify the test version")
+    CATCH_START_SECTION("version: verify the test version")
         CATCH_REQUIRE(edhttp::get_major_version() == EDHTTP_VERSION_MAJOR);
         CATCH_REQUIRE(edhttp::get_release_version() == EDHTTP_VERSION_MINOR);
         CATCH_REQUIRE(edhttp::get_patch_version() == EDHTTP_VERSION_PATCH);

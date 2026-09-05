@@ -34,7 +34,6 @@ add_library(${PROJECT_NAME} SHARED
     http_date.cpp
     http_link.cpp
     mime_type.cpp
-    mkgmtime.c
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
     quoted_printable.cpp
     string_part.cpp

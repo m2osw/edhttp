@@ -23,7 +23,6 @@
 
 #include    "edhttp/exception.h"
 #include    "edhttp/http_date.h"
-#include    "edhttp/mkgmtime.h"
 #include    "edhttp/names.h"
 #include    "edhttp/token.h"
 

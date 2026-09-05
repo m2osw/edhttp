@@ -22,12 +22,12 @@
 #include    "edhttp/http_date.h"
 
 #include    "edhttp/exception.h"
-#include    "edhttp/mkgmtime.h"
 
 
 // snapdev
 //
 #include    <snapdev/to_lower.h>
+#include    <snapdev/timestamp.h>
 #include    <snapdev/trim_string.h>
 
 
@@ -289,8 +289,6 @@ std::string date_to_string(time_t seconds, date_format_t date_format)
  */
 time_t string_to_date(std::string const & date)
 {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Weffc++"
     struct parser_t
     {
         parser_t(std::string const & date)
@@ -719,7 +717,6 @@ time_t string_to_date(std::string const & date)
         std::string     f_date = std::string();
         char const *    f_s = nullptr;
     } parser(date);
-#pragma GCC diagnostic pop
 
     if(!parser.parse())
     {
@@ -731,6 +728,7 @@ time_t string_to_date(std::string const & date)
     // to work beyond 2070 which is probably short sighted (ha! ha!)
     // However, that way we avoid calling time() and transform that in
     // a tm structure and check that date
+    //
     if(parser.f_time_info.tm_year < 100)
     {
         parser.f_time_info.tm_year += 1900;
@@ -741,87 +739,18 @@ time_t string_to_date(std::string const & date)
     }
 
     // make sure the day is valid for that month/year
-    if(parser.f_time_info.tm_mday > last_day_of_month(parser.f_time_info.tm_mon + 1, parser.f_time_info.tm_year))
+    //
+    int const max_mday(snapdev::unix_timestamp_month_days(parser.f_time_info.tm_year, parser.f_time_info.tm_mon + 1));
+    if(parser.f_time_info.tm_mday > max_mday)
     {
         return -1;
     }
 
     // now we have a time_info which is fully adjusted except for DST...
     // let's make time
+    //
     parser.f_time_info.tm_year -= 1900;
-    return mkgmtime(&parser.f_time_info);
-}
-
-
-/** \brief From a month and year, get the last day of the month.
- *
- * This function gives you the number of the last day of the month.
- * In all cases, except February, it returns 30 or 31.
- *
- * For the month of February, we first compute the leap year flag.
- * If the year is a leap year, then it returns 29, otherwise it
- * returns 28.
- *
- * The leap year formula is:
- *
- * \code
- *      leap = !(year % 4) && (year % 100 || !(year % 400));
- * \endcode
- *
- * \warning
- * This function throws if called with September 1752 because the
- * month has missing days within the month (days 3 to 13).
- *
- * \exception logic_error
- * This exception is raised if the month is not between 1 and 12 inclusive
- * or if the month/year is September 1752 (because that month never existed).
- *
- * \param[in] month  A number from 1 to 12 representing a month.
- * \param[in] year  A year, including the century.
- *
- * \return Last day of month, 30, 31, or in February, 28 or 29.
- */
-int last_day_of_month(int month, int year)
-{
-    if(month < 1 || month > 12)
-    {
-        throw logic_error(
-              "last_day_of_month called with "
-            + std::to_string(month)
-            + " as the month number");
-    }
-
-    if(month == 2)
-    {
-        // special case for February
-        //
-        // The time when people switch from Julian to Gregorian is country
-        // dependent, Great Britain changed on September 2, 1752, but some
-        // countries changed as late as 1952...
-        //
-        // For now, we use the GB date. Once we have a valid way to handle
-        // this with the locale, we can look into updating the code. That
-        // being said, it should not matter too much because most dates on
-        // the Internet are past 2000.
-        //
-        if(year <= 1752)
-        {
-            return year % 4 == 0 ? 29 : 28;
-        }
-        return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) ? 29 : 28;
-    }
-
-    if(month == 9 && year == 1752)
-    {
-        // we cannot handle this nice one here, days 3 to 13 are missing on
-        // this month... (to adjust the calendar all at once!)
-        throw logic_error(
-              "last_day_of_month called with "
-            + std::to_string(year)
-            + " as the year number");
-    }
-
-    return g_month_days[month - 1];
+    return timegm(&parser.f_time_info);
 }
 
 
