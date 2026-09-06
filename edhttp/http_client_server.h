@@ -39,9 +39,6 @@ namespace edhttp
 
 
 
-
-
-
 // name / value pairs
 typedef std::map<std::string, std::string>  header_t;
 
@@ -163,6 +160,7 @@ private:
     std::string                     f_host = std::string();
     int32_t                         f_port = -1;
 };
+
 
 
 } // namespace edhttp

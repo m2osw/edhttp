@@ -45,6 +45,7 @@
 
 // snapdev
 //
+#include    <snapdev/base64.h>
 #include    <snapdev/not_reached.h>
 
 
@@ -63,26 +64,6 @@
 
 namespace edhttp
 {
-
-
-namespace
-{
-
-char const g_base64[] =
-{
-    // 8x8 characters
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
-    'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-    'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
-    'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
-    'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
-    'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
-    'w', 'x', 'y', 'z', '0', '1', '2', '3',
-    '4', '5', '6', '7', '8', '9', '+', '/'
-};
-
-}
-// no name namespace
 
 
 
@@ -544,51 +525,9 @@ void http_request::set_post(std::string const & name, std::string const & value)
 
 void http_request::set_basic_auth(std::string const & username, std::string const & secret)
 {
-    auto encode = [](std::string const & in, std::string & out)
-    {
-        // reset output (just in case)
-        out.clear();
-
-        // WARNING: following algorithm does NOT take any line length
-        //          in account; and it is deadly well optimized
-        unsigned char const *s(reinterpret_cast<unsigned char const *>(in.c_str()));
-        while(*s != '\0')
-        {
-            // get 1 to 3 characters of input
-            out += g_base64[s[0] >> 2]; // & 0x3F not required
-            ++s;
-            if(s[0] != '\0')
-            {
-                out += g_base64[((s[-1] << 4) & 0x30) | ((s[0] >> 4) & 0x0F)];
-                ++s;
-                if(s[0] != '\0')
-                {
-                    // 24 bits of input uses 4 base64 characters
-                    out += g_base64[((s[-1] << 2) & 0x3C) | ((s[0] >> 6) & 0x03)];
-                    out += g_base64[s[0] & 0x3F];
-                    s++;
-                }
-                else
-                {
-                    // 16 bits of input uses 3 base64 characters + 1 pad
-                    out += g_base64[(s[-1] << 2) & 0x3C];
-                    out += '=';
-                    break;
-                }
-            }
-            else
-            {
-                // 8 bits of input uses 2 base64 characters + 2 pads
-                out += g_base64[(s[-1] << 4) & 0x30];
-                out += "==";
-                break;
-            }
-        }
-    };
-
     std::string const authorization_token(username + ":" + secret);
     std::string base64;
-    encode(authorization_token, base64);
+    snapdev::base64::encode(authorization_token, base64);
 
     set_header(
           g_name_edhttp_field_authorization
