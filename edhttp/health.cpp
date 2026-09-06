@@ -105,7 +105,7 @@ advgetopt::option const g_options[] =
 
 
 
-// TODO: this needs to be a the HTTP server (which we do not quite have yet)
+// TODO: this needs to be an HTTP server (which we do not quite have yet)
 class health_server_connection
     : public ed::tcp_server_connection
 {
@@ -293,21 +293,22 @@ bool process_health_options(advgetopt::getopt & opts)
         return false;
     }
 
-    g_health_connection = std::make_shared<health_server_connection>(
+    health_server_connection::pointer_t connection(std::make_shared<health_server_connection>(
               vec[0].get_from()
             , certificate
             , private_key
             , mode
             , 5             // max. connections
-            , true);        // reuse_addr
+            , true));       // reuse_addr
 
-    if(!ed::communicator::instance()->add_connection(g_health_connection))
+    if(!ed::communicator::instance()->add_connection(connection))
     {
         SNAP_LOG_ERROR
             << "adding the health connection to the list of connections failed."
             << SNAP_LOG_SEND;
         return false;
     }
+    g_health_connection = connection;
 
     return true;
 }
