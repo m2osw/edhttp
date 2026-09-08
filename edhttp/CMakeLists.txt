@@ -29,10 +29,12 @@ configure_file(
 add_library(${PROJECT_NAME} SHARED
     cache_control.cpp
     health.cpp
-    http_client_server.cpp
     http_cookie.cpp
     http_date.cpp
     http_link.cpp
+    http_request.cpp
+    http_response.cpp
+    http_sync_client.cpp
     mime_type.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
     quoted_printable.cpp
