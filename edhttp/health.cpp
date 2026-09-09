@@ -21,7 +21,6 @@
 //
 #include    "edhttp/health.h"
 
-#include    "edhttp/http_client_server.h"
 
 
 // eventdispatcher
