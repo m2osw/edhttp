@@ -45,6 +45,7 @@ namespace edhttp
 
 // Helper class to handle URIs
 // http://tools.ietf.org/html/rfc3986
+//
 class uri
 {
 public:
@@ -52,12 +53,12 @@ public:
     typedef std::map<std::string, std::string>
                                 uri_options_t;
 
-    // constructors/destructor
                                 uri();
                                 uri(std::string const & uri, bool accept_path = false);
                                 ~uri();
 
     // URI handling
+    //
     bool                        set_uri(
                                       std::string const & uri
                                     , bool accept_path = false
@@ -66,24 +67,30 @@ public:
     std::string                 get_uri(
                                       bool use_hash_bang = false
                                     , std::string const & redact = std::string()) const;
-    std::string                 get_website_uri(bool include_port = false) const;
+    std::string                 get_website_uri(
+                                      bool include_port = false
+                                    , bool include_user = false) const;
     std::string                 get_last_error_message() const;
     void                        clear_last_error_message();
 
     // get a part by name
+    //
     std::string                 get_part(std::string const & name, int part = -1) const;
 
     // user/password
+    //
     void                        set_username(std::string const & username);
     std::string const &         get_username() const;
     void                        set_password(std::string const & password);
     std::string const &         get_password() const;
 
     // scheme handling
+    //
     void                        set_scheme(std::string const & uri_scheme);
     std::string const &         scheme() const;
 
     // domain & sub-domains handling
+    //
     void                        set_domain(std::string const & full_domain_name);
     std::string                 full_domain() const;
     std::string const &         top_level_domain() const;
@@ -97,22 +104,25 @@ public:
                                 address_ranges();
 
     // port handling
+    //
     void                        set_port(std::string const & port);
     void                        set_port(int port);
     int                         get_port() const;
     std::string                 get_str_port() const;
 
     // path handling
+    //
     bool                        is_unix() const;
     void                        set_path(std::string uri_path);
     std::string                 path(bool encoded = true) const;
     int                         path_count() const;
-    std::string                 path_folder_name(int part) const;
+    std::string                 path_segment(int part) const;
     advgetopt::string_list_t const &
                                 path_list() const;
     std::string                 hash_bang_path(bool encoded = true) const;
 
     // option handling
+    //
     void                        set_option(std::string const & name, std::string const & value);
     void                        unset_option(std::string const & name);
     std::string                 option(std::string const & name) const;
@@ -121,7 +131,9 @@ public:
     uri_options_t const &       options_list() const;
 
     // query string handling
+    //
     void                        set_query_option(std::string const & name, std::string const & value);
+    void                        add_query_option(std::string const & name, std::string const & value);
     void                        unset_query_option(std::string const & name);
     void                        set_query_string(std::string const & uri_query_string);
     std::string                 query_string() const;
@@ -133,20 +145,18 @@ public:
     uri_options_t const &       query_string_list() const;
 
     // anchor handling (note: "#!" is not considered an anchor)
+    //
     void                        set_anchor(std::string const & uri_anchor);
     std::string const &         anchor() const;
 
     // operators
+    //
     bool                        operator == (uri const & rhs) const;
     bool                        operator != (uri const & rhs) const;
     bool                        operator <  (uri const & rhs) const;
     bool                        operator <= (uri const & rhs) const;
     bool                        operator >  (uri const & rhs) const;
     bool                        operator >= (uri const & rhs) const;
-
-    static std::string          urlencode(std::string const & uri, char const * accepted = "");
-    static std::string          urldecode(std::string const & uri, bool relax = false);
-    static int                  scheme_to_port(std::string const & uri_scheme);
 
 private:
     bool                        process_domain(
@@ -158,6 +168,7 @@ private:
 
     // f_original is the unchanged source (from constructor or
     // last set_uri() call)
+    //
     std::string                 f_original = std::string();
     std::string                 f_scheme = std::string(g_name_edhttp_scheme_http);
     std::string                 f_username = std::string();
@@ -174,6 +185,11 @@ private:
     addr::addr_range::vector_t  f_address_ranges = addr::addr_range::vector_t();
     std::string                 f_last_error_message = std::string();
 };
+
+
+std::string          urlencode(std::string const & uri, char const * accepted = "");
+std::string          urldecode(std::string const & uri, bool relax = false);
+int                  scheme_to_port(std::string const & uri_scheme);
 
 
 

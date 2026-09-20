@@ -1,6 +1,9 @@
 
 * Remove duplicated code for time related convertions/tests (mktime, LEAP).
 * Look into supporting all http protocols: HTTP/HTTPS/HTTP2/HTTP3 (libhttp2?)
+  - for HTTP/3, the Google library is probably best (quiche)
+  - for HTTP/2, there is a library similar to quiche (i.e. just a state machine
+    and no direct I/O of its own) named nghttp2
 * Create the HTTP client & server as separate headers/implementations.
 * Get a better grip on the address ranges.
 * Add tests for everything to be clearly verified.
@@ -19,4 +22,7 @@
   - https://github.com/opawg/user-agents-v2/blob/master/src/apps.json
   - https://ip-ranges.amazonaws.com/ip-ranges.json
   - https://www.gstatic.com/ipranges/goog.json
+* Remove the hash-bang support from the uri class (...#!/path/here)
+* Consider create a urlencode() and urldecode() that take `std::string &` as
+  input and save the results in that string (avoid extra allocations)
 

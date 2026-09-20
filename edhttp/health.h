@@ -35,11 +35,15 @@ constexpr char const        DIAG_KEY_HEALTH[] = "HEALTH";
 
 // some statuses
 //
-constexpr char const        HEALTH_STARTING[] = "STARTING";
-constexpr char const        HEALTH_OK[]       = "OK";
-constexpr char const        HEALTH_ERROR[]    = "ERROR";
-constexpr char const        HEALTH_FAILED[]   = "FAILED";
+constexpr char const        HEALTH_ERROR[]       = "ERROR";
+constexpr char const        HEALTH_FAILED[]      = "FAILED";
+constexpr char const        HEALTH_OK[]          = "OK";
+constexpr char const        HEALTH_STARTING[]    = "STARTING";
+constexpr char const        HEALTH_TERMINATING[] = "TERMINATING";
 
+
+// WARNING: at this time, the client is not complete, it will not reply
+//          to any request; we need to implement the GET
 
 void            add_health_options(advgetopt::getopt & opts);
 bool            process_health_options(advgetopt::getopt & opts);

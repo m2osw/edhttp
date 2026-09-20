@@ -73,13 +73,13 @@ std::string http_response::get_original_header() const
 }
 
 
-http_response::protocol_t http_response::get_protocol() const
+http_protocol_t http_response::get_protocol() const
 {
     return f_protocol;
 }
 
 
-int http_response::get_response_code() const
+http_response_code_t http_response::get_response_code() const
 {
     return f_response_code;
 }
@@ -116,13 +116,13 @@ void http_response::append_original_header(std::string const & header)
 }
 
 
-void http_response::set_protocol(protocol_t protocol)
+void http_response::set_protocol(http_protocol_t protocol)
 {
     f_protocol = protocol;
 }
 
 
-void http_response::set_response_code(int code)
+void http_response::set_response_code(http_response_code_t code)
 {
     f_response_code = code;
 }

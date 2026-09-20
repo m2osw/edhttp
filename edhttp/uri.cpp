@@ -69,9 +69,9 @@ namespace edhttp
 
 
 
-/** \brief This function intializes a default Snap URI object.
+/** \brief This function initializes a default URI object.
  *
- * Initialize a default Snap URI object.
+ * Initialize a default URI object.
  *
  * By default, the scheme is set to HTTP and everything else is set to
  * empty. This also means the original URI is set to empty (and stays that
@@ -98,7 +98,7 @@ uri::uri()
  * This function raises this exception when the input \p u URI is
  * considered invalid.
  *
- * \param[in] u  The URI to assign to this Snap URI object.
+ * \param[in] u  The URI to assign to this URI object.
  * \param[in] accept_path  Whether to accept path like URIs (such as
  * "file:///<path>").
  *
@@ -572,7 +572,7 @@ bool uri::set_uri(
     // the path may include some ".." which we want to eliminate
     // note that contrary to Unix we do not accept "/.." as an equivalent
     // to "/" and we do not verify that all the paths exist... (i.e.
-    // if "c" does not exist under "/a/b" (folder /a/b/c), then it should
+    // if "c" does not exist under "/a/b" (path /a/b/c), then it should
     // be an error to use "/a/b/c/.." since "/a/b/c" cannot be computed.)
     //
     if(!clean_path(uri_path))
@@ -669,24 +669,24 @@ bool uri::clean_path(advgetopt::string_list_t & path_segments)
 }
 
 
-/** \brief Return the original URI used to define the Snap URI object.
+/** \brief Return the original URI used to define the URI object.
  *
  * This function returns the original URI as defined when calling the
- * set_uri() or creating the Snap URI object with the uri() constructor
+ * set_uri() or creating the URI object with the uri() constructor
  * accepting a string.
  *
  * Note that it is possible to use the uri object without using the
  * set_uri() or a string in the constructor by calling the setters of
- * the different parts of a URI. This is actually how snap_child does it
- * because Apache does not give us one plane URI, instead we get pre
+ * the different parts of a URI. This is actually how snap_child was doing
+ * it because Apache does not give us one plain URI, instead we get pre
  * separated parts. Therefore the get_original_uri() is always empty when
  * called from that f_uri variable.
  *
  * Note that this URI may still include security issues, although if the
- * input was not considered valid (i.e. had a valid scheme, etc.) then
- * this function returns an empty string.
+ * input was not considered valid (i.e. did not have a valid scheme, etc.)
+ * then this function also returns an empty string.
  *
- * \return A constant reference to the original Snap URI.
+ * \return A constant reference to the original URI.
  */
 std::string const & uri::get_original_uri() const
 {
@@ -694,7 +694,7 @@ std::string const & uri::get_original_uri() const
 }
 
 
-/** \brief Return the current URI define in this Snap URI object.
+/** \brief Return the current URI define in this URI object.
  *
  * This function concatenate all the URI parts in a fully qualified URI
  * and returns the result.
@@ -712,7 +712,7 @@ std::string const & uri::get_original_uri() const
  * password, this string is used instead of the password. This is often set
  * to something like "XXX" or similar.
  *
- * \return The URI represented by this Snap URI object.
+ * \return The URI represented by this URI object.
  */
 std::string uri::get_uri(bool use_hash_bang, std::string const & redact) const
 {
@@ -804,15 +804,34 @@ std::string uri::get_uri(bool use_hash_bang, std::string const & redact) const
  * does not correspond to the scheme and the \p include_port flag
  * is set to true.
  *
- * \param[in] include_port  Whether the port should be included.
+ * \note
+ * The \p include_port parameter does not force the inclusion of the
+ * port if the port is the default for the specified scheme. So if the
+ * port is 80 and the scheme is http, it will never be included.
+ * Similarly, if the port is 443 and the scheme https, then it does not
+ * get included.
  *
- * \return The domain name with the scheme and optionally the port.
+ * \param[in] include_port  Whether the port should be included.
+ * \param[in] include_user  Whether the username and password.
+ *
+ * \return The domain name with the scheme and optionally the port and user info.
  */
-std::string uri::get_website_uri(bool include_port) const
+std::string uri::get_website_uri(bool include_port, bool include_user) const
 {
     std::string result(f_scheme);
 
     result += "://";
+
+    if(include_user
+    && !f_username.empty()
+    && !f_password.empty())
+    {
+        result += f_username;
+        result += ':';
+        result += f_password;
+        result += '@';
+    }
+
     result += full_domain();
 
     // only include the port if the caller wants it and if it does not
@@ -871,7 +890,7 @@ void uri::clear_last_error_message()
  * \li option-count -- The number of options
  * \li original -- The original URI or ""
  * \li password -- The password
- * \li path -- The folder name number \p part
+ * \li path -- The segment number \p part
  * \li path-count -- the number of paths
  * \li scheme -- The scheme
  * \li query-string -- The query string number \p part
@@ -1270,7 +1289,7 @@ bool uri::process_domain(
 
 /** \brief Set the domain to 'domain'.
  *
- * This function changes the Snap URI to the specified full domain.
+ * This function changes the URI to the specified full domain.
  * This means changing the set of sub-domains, the TLD and the domain
  * it-self are updated with the corresponding data from the full domain.
  * The function takes care of breaking the input
@@ -1322,13 +1341,13 @@ void uri::set_domain(std::string const & full_domain_name)
 /** \brief Reconstruct the full domain from the broken down information
  *
  * This function rebuilds a full domain name from the broken down
- * data saved in the Snap URI: the sub-domains, the domain name,
+ * data saved in the URI: the sub-domains, the domain name,
  * and the TLD.
  *
  * \todo
  * Add caching so calling the function more than once will be fast.
  *
- * \return The full domain name representation of this Snap URI.
+ * \return The full domain name representation of this URI.
  */
 std::string uri::full_domain() const
 {
@@ -1348,7 +1367,7 @@ std::string uri::full_domain() const
  * For example, in "www.example.com", the top level domain name
  * is "com".
  *
- * \return The top level domain name of the Snap URI.
+ * \return The top level domain name of the URI.
  */
 std::string const& uri::top_level_domain() const
 {
@@ -1482,7 +1501,7 @@ addr::addr_range::vector_t const & uri::address_ranges()
  * This function generates an exception if an invalid port is detected
  * (negative, larger than 65535, or characters other than 0-9).
  *
- * \param[in] port  The new port for this Snap URI object.
+ * \param[in] port  The new port for this URI object.
  */
 void uri::set_port(std::string const & port)
 {
@@ -1512,7 +1531,7 @@ void uri::set_port(std::string const & port)
  * This function generates an exception if an invalid port is
  * detected (negative or characters other than 0-9).
  *
- * \param[in] port  The new port for this Snap URI object.
+ * \param[in] port  The new port for this URI object.
  */
 void uri::set_port(int port)
 {
@@ -1561,7 +1580,7 @@ std::string uri::get_str_port() const
  *
  * Note that the function does not in any way verify whether the other
  * parameters than f_domain are valid and represent a correct Unix
- * URI. This is the responsability of the caller.
+ * URI. This is the responsibility of the caller.
  *
  * \return true if the domain string is empty.
  */
@@ -1591,18 +1610,18 @@ bool uri::is_unix() const
  * least one part just before that (i.e. "/this/one/../other/one" is
  * valid, but "/../that/one/is/not" since ".." from / does not
  * exist. This is not how Unix usually manages paths since
- * in Unix / and /.. are one and the same folder.)
+ * in Unix / and /.. are one and the same directory.)
  *
  * Note that if you wanted to make use of the hash bang feature,
  * you would still make use of this function to setup your path in
- * the Snap URI object. The hash bang feature determines how
+ * the URI object. The hash bang feature determines how
  * the path is handled when you get the URI with get_uri().
  *
  * \exception uri_exception_invalid_path
  * The function raises this exception if the path includes more
  * ".." than there are "normal" parts on the left side of the "..".
  *
- * \param[in] uri_path  The new path for this URI.
+ * \param[in] uri_path  The path for this URI.
  *
  * \sa path()
  */
@@ -1615,17 +1634,16 @@ void uri::set_path(std::string uri_path)
     if((uri_path.empty() || uri_path[0] != '/')
     && !f_path.empty())
     {
-        // append unless the user passed a path starting with "/"
-        // or the current path is empty
-        uri_path = snapdev::join_strings(f_path, "/") + "/" + uri_path;
+        uri_path = snapdev::join_strings(f_path, "/") + '/' + uri_path;
     }
 
     // if the path starts with a '/' or includes a double '/'
-    // within itself, it will be removed because of the SkipEmptyParts
+    // within itself, it will be removed
+    //
     advgetopt::string_list_t p;
     advgetopt::split_string(uri_path, p, {"/"});
 
-    // next we remove all ".." (and the previous part); if ".." was
+    // next we remove all "." and ".." (and the previous part); if ".." was
     // at the start of the path, then an exception is raised
     //
     int max_parts(p.size());
@@ -1633,8 +1651,9 @@ void uri::set_path(std::string uri_path)
     {
         if(p[i] == ".")
         {
-            // canonalization includes removing "." parts which are
+            // canonicalization includes removing "." parts which are
             // viewed exactly as empty parts
+            //
             p.erase(p.begin() + i);
             --i;
             --max_parts;
@@ -1642,6 +1661,7 @@ void uri::set_path(std::string uri_path)
         else if(p[i] == "..")
         {
             // note: max should not be less than 2 if i != 0
+            //
             if(i == 0 || max_parts < 2)
             {
                 throw invalid_path(
@@ -1656,6 +1676,7 @@ void uri::set_path(std::string uri_path)
     }
 
     // the input was valid, save the new result
+    //
     f_path.swap(p);
 }
 
@@ -1664,8 +1685,8 @@ void uri::set_path(std::string uri_path)
  *
  * This function returns the full concatenated path of the URI.
  *
- * The function encodes the path appropriately. The path can thus be
- * used anywhere an encoded path is accepted. The encoding can be
+ * By default the function encodes the path appropriately. The path can
+ * thus be used anywhere an encoded path is accepted. The encoding can be
  * avoided by setting the \p encoded flag to false.
  *
  * Note that a non encoded path may include / characters instead of
@@ -1681,16 +1702,22 @@ void uri::set_path(std::string uri_path)
  * slash, so we avoid adding it in the first place. If there is no path,
  * the function returns the empty string ("").
  *
- * \param[in] encoded  Should the resulting path be URL encoded already?
+ * \param[in] encoded  Defines whether the resulting path should be URL encoded.
  * By default the path is URL encoded as expected by the HTTP scheme.
  *
- * \return The full path of the URI.
+ * \return The complete path of the URI without a starting "/".
  */
 std::string uri::path(bool encoded) const
 {
     if(encoded)
     {
+        // try to reserve space to avoid realloc() as much as possible
+        // the 100 is for encoded characters and we otherwise assume an
+        // average of 32 bytes per segment, including the '/' separator
+        //
         std::string output;
+        output.reserve(100 + f_path.size() * 32);
+
         bool first(true);
         for(auto const & segment : f_path)
         {
@@ -1734,16 +1761,16 @@ std::string uri::hash_bang_path(bool encoded) const
 }
 
 
-/** \brief Retrieve the number of folder names defined in the path.
+/** \brief Retrieve the number of segments defined in the path.
  *
- * This function returns the number of folder names defined in the
- * path. Each name can be retrieved with the path_folder() function.
+ * This function returns the number of segments defined in the
+ * path. Each name can be retrieved with the path_segment() function.
  *
- * The function may return 0 if no folder name is available.
+ * The function may return 0 if no segment names are defined.
  *
- * \return The number of folder names available.
+ * \return The number of segments available.
  *
- * \sa path_folder()
+ * \sa path_segment()
  */
 int uri::path_count() const
 {
@@ -1751,33 +1778,33 @@ int uri::path_count() const
 }
 
 
-/** \brief Get a folder name from the path.
+/** \brief Get a segment from the path.
  *
- * This function is used to retrieve the name of a specific folder.
- * This is useful when you make use of a folder name as a dynamic
+ * This function is used to retrieve a specific segment in the path.
+ * This is useful when you make use of a segment as a dynamic
  * name. For example with a path such as "journal/george",
- * path_folder_name(1); returns "george" which may be the name of
+ * path_segment(1); returns "george" which may be the name of
  * the journal owner.
  *
  * When you use this function to retrieve dynamic entries, it is
  * assumed that you do it after the path options were removed so a
  * path such as "en/journal/george" would be changed to
- * "journal/george" and path_folder_name(1); would still return
+ * "journal/george" and path_segment(1); would still return
  * "george".
  *
  * \exception out_of_range
  * This function raises this exception if the \p part parameter is
- * outside the range of folder names available. \p part should be
+ * outside the range of segments available. \p part should be
  * between 0 and path_count() - 1. If the path is empty, then this
  * function cannot be called.
  *
- * \param[in] part  The index of the folder to retrieve.
+ * \param[in] part  The index of the segment to retrieve.
  *
- * \return The folder name.
+ * \return The segment.
  *
  * \sa path_count();
  */
-std::string uri::path_folder_name(int part) const
+std::string uri::path_segment(int part) const
 {
     if(static_cast<std::size_t>(part) >= f_path.size())
     {
@@ -1792,12 +1819,16 @@ std::string uri::path_folder_name(int part) const
 }
 
 
-/** \brief The array of folder names.
+/** \brief The array of segments.
  *
  * This function returns a reference to the array used to hold the
- * folder names forming the URI path.
+ * segments forming the URI path.
  *
- * \return A constant reference to the list of string forming the path.
+ * \warning
+ * Make sure to copy the result if you are going to modify the path
+ * before you're done with it.
+ *
+ * \return A constant reference to the list of strings forming the path.
  */
 advgetopt::string_list_t const & uri::path_list() const
 {
@@ -1947,38 +1978,42 @@ uri::uri_options_t const& uri::options_list() const
  * This function is used to change the named query string with the
  * specified value.
  *
- * A query string option with an empty string as a value is considered
- * undefined and is not shown on the final URI. So setting an option to
- * the empty string ("") is equivalent to unset_query_option().
- *
  * \param[in] name  The name of the query string option.
  * \param[in] value  The value of the query string option.
+ *
+ * \sa unset_query_option()
  */
-void uri::set_query_option(std::string const& name, std::string const& value)
+void uri::set_query_option(std::string const & name, std::string const & value)
 {
-    if(name.empty())
-    {
-        // this happens if the name was not defined in the configuration file
-        return;
-    }
-
-    // TODO: see whether we currently use this feature, because it is rather
-    //       incorrect, it is possible to have an empty value in a query
-    //       string (i.e. "...?logout")
-    //
-    //       we should use unset_query_option() instead
-    //
-    if(value.empty())
-    {
-        auto it(f_query_strings.find(name));
-        if(it != f_query_strings.end())
-        {
-            f_query_strings.erase(it);
-        }
-    }
-    else
+    if(!name.empty())
     {
         f_query_strings[name] = value;
+    }
+}
+
+
+/** \brief Add a value to a query string option.
+ *
+ * This function is used to add the specified value to the named query string.
+ * We support adding values by adding a comma in between each value. The
+ * code does not currently verify whether the values themselves already
+ * include a comma.
+ *
+ * \param[in] name  The name of the query string option.
+ * \param[in] value  The value to be appended.
+ *
+ * \sa set_query_option()
+ * \sa unset_query_option()
+ */
+void uri::add_query_option(std::string const & name, std::string const & value)
+{
+    if(!name.empty())
+    {
+        if(!f_query_strings[name].empty())
+        {
+            f_query_strings[name] += ',';
+        }
+        f_query_strings[name] += value;
     }
 }
 
@@ -1989,30 +2024,29 @@ void uri::set_query_option(std::string const& name, std::string const& value)
  * and thus will not appear in the URI.
  *
  * \param[in] name  The name of the option to delete.
+ *
+ * \sa set_query_option()
  */
-void uri::unset_query_option(std::string const& name)
+void uri::unset_query_option(std::string const & name)
 {
-    if(name.empty())
+    if(!name.empty())
     {
-        // this happens if the name was not defined in the configuration file
-        return;
-    }
-
-    auto it(f_query_strings.find(name));
-    if(it != f_query_strings.end())
-    {
-        f_query_strings.erase(it);
+        auto it(f_query_strings.find(name));
+        if(it != f_query_strings.end())
+        {
+            f_query_strings.erase(it);
+        }
     }
 }
 
 
 /** \brief Set the query string.
  *
- * This function can be used to reset the query string to the
+ * This function is used to reset the query string to the
  * parameters defined in this URI query string.
  *
  * The function does not clear all the existing query strings,
- * it only replaces existing entries. This means also means that
+ * it only replaces existing entries. This also means that
  * it does not detect whether the input includes the same option
  * more than once and only the last one sticks.
  *
@@ -2023,6 +2057,8 @@ void uri::unset_query_option(std::string const& name)
  * string options.
  *
  * \param[in] uri_query_string  The query string to add to the existing data.
+ *
+ * \sa clear_query_options()
  */
 void uri::set_query_string(std::string const & uri_query_string)
 {
@@ -2066,7 +2102,7 @@ void uri::clear_query_options()
  * This function goes through the list of defined query string options
  * and builds the resulting query string to generate the final URI.
  *
- * The result is already URL ecoded since you would otherwise not know
+ * The result is URL encoded since you would otherwise not know
  * where/which equal and ampersand are legal.
  *
  * \return The URI query string.
@@ -2081,13 +2117,15 @@ std::string uri::query_string() const
             result += '&';
         }
         result += urlencode(name_value.first);
+
+        // add the value only if not empty
+        //
         if(!name_value.second.empty())
         {
-            // add the value only if not empty
-            result += '=';
             // we now support commas in URIs because... well... it is
             // common and it won't break anything
             //
+            result += '=';
             result += urlencode(name_value.second, ",");
         }
     }
@@ -2110,18 +2148,17 @@ std::string uri::query_string() const
  */
 bool uri::has_query_option(std::string const & name) const
 {
-    if(name.empty())
+    if(!name.empty())
     {
-        // this happens if the name was not defined in the configuration file
-        return false;
+        return f_query_strings.find(name) != f_query_strings.end();
     }
 
-    return f_query_strings.find(name) != f_query_strings.end();
+    return false;
 }
 
 /** \brief Retrieve a query string option.
  *
- * This function can be used to retrieve the current value of a query
+ * This function is used to retrieve the current value of a query
  * string option.
  *
  * Note that you cannot know whether an option is defined using this
@@ -2175,7 +2212,7 @@ int uri::query_option_count() const
  *
  * \sa query_option_count();
  */
-std::string uri::query_option(int part, std::string& name) const
+std::string uri::query_option(int part, std::string & name) const
 {
     if(static_cast<std::size_t>(part) >= f_query_strings.size())
     {
@@ -2256,7 +2293,7 @@ std::string const & uri::anchor() const
  * This function compares two URIs and returns true if they are
  * equal. The URIs are tested using what the get_uri() function
  * generates which means not 100% of the information included
- * in the Snap URI object.
+ * in the URI object.
  *
  * \param[in] rhs  The right handside to compare this against.
  *
@@ -2273,7 +2310,7 @@ bool uri::operator == (const uri& rhs) const
  * This function compares two URIs and returns true if they are
  * not equal. The URIs are tested using what the get_uri() function
  * generates which means not 100% of the information included
- * in the Snap URI object.
+ * in the URI object.
  *
  * \param[in] rhs  The right handside to compare this against.
  *
@@ -2290,7 +2327,7 @@ bool uri::operator != (uri const & rhs) const
  * This function compares two URIs and returns true if this is
  * smaller than the \p rhs parameter. The URIs are tested using
  * what the get_uri() function generates which means not 100% of
- * the information included in the Snap URI object.
+ * the information included in the URI object.
  *
  * \param[in] rhs  The right handside to compare this against.
  *
@@ -2307,7 +2344,7 @@ bool uri::operator < (uri const & rhs) const
  * This function compares two URIs and returns true if this is
  * smaller or equal to \p rhs. The URIs are tested using
  * what the get_uri() function generates which means not 100% of
- * the information included in the Snap URI object.
+ * the information included in the URI object.
  *
  * \param[in] rhs  The right handside to compare this against.
  *
@@ -2324,7 +2361,7 @@ bool uri::operator <= (uri const & rhs) const
  * This function compares two URIs and returns true if this is
  * larger than the \p rhs parameter. The URIs are tested using
  * what the get_uri() function generates which means not 100% of
- * the information included in the Snap URI object.
+ * the information included in the URI object.
  *
  * \param[in] rhs  The right handside to compare this against.
  *
@@ -2341,7 +2378,7 @@ bool uri::operator > (uri const & rhs) const
  * This function compares two URIs and returns true if this is
  * larger or equal to \p rhs. The URIs are tested using
  * what the get_uri() function generates which means not 100% of
- * the information included in the Snap URI object.
+ * the information included in the URI object.
  *
  * \param[in] rhs  The right handside to compare this against.
  *
@@ -2375,7 +2412,7 @@ bool uri::operator >= (uri const & rhs) const
  *
  * \return The encoded URI, it may be equal to the input.
  */
-std::string uri::urlencode(std::string const & in, char const * accepted)
+std::string urlencode(std::string const & in, char const * accepted)
 {
     std::string encoded;
 
@@ -2429,7 +2466,7 @@ std::string uri::urlencode(std::string const & in, char const * accepted)
  *
  * \return The decoded URI, it may be equal to the input.
  */
-std::string uri::urldecode(std::string const & in, bool relax)
+std::string urldecode(std::string const & in, bool relax)
 {
     // Note that if the URI is properly encoded, then latin1 == UTF-8
 
@@ -2591,7 +2628,7 @@ std::string uri::urldecode(std::string const & in, bool relax)
  * \return The corresponding port number or -1 if the function cannot
  *         determine that number.
  */
-int uri::scheme_to_port(std::string const & scheme)
+int scheme_to_port(std::string const & scheme)
 {
     if(scheme == g_name_edhttp_scheme_http) // 99% so put it first
     {
@@ -2623,6 +2660,7 @@ int uri::scheme_to_port(std::string const & scheme)
     }
 
     // not a common service, ask the system... (probably less than 0.01%)
+    //
     servent * s(getservbyname(scheme.c_str(), g_name_edhttp_scheme_tcp));
     if(s == nullptr)
     {
@@ -2630,6 +2668,7 @@ int uri::scheme_to_port(std::string const & scheme)
         if(s == nullptr)
         {
             // we don't know...
+            //
             return -1;
         }
     }

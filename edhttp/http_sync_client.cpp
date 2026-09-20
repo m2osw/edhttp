@@ -84,6 +84,24 @@ void http_sync_client::set_keep_alive(bool keep_alive)
 }
 
 
+/** \brief Send a small request to an HTTP server.
+ *
+ * This functions synchronously sends an HTTP request to a server,
+ * waits for an answer, and save the answer in an http_response object.
+ *
+ * If the request has ed::mode_t::MODE_ALWAYS_SECURE as its mode, then
+ * all connections will always be encrypted.
+ *
+ * \todo
+ * Consider getting the list of addresses here instead of inside the
+ * request. That way, reusing the same request over and over again can
+ * be useful and safe. Right now the request determines the IP addresses
+ * from the specified URI when those could change over time.
+ *
+ * \param[in] request  The request to send to the HTTP server.
+ *
+ * \return A pointer to an HTTP response.
+ */
 http_response::pointer_t http_sync_client::send_request(http_request const & request)
 {
     // we can keep a connection alive, but the host and port cannot
@@ -105,6 +123,7 @@ http_response::pointer_t http_sync_client::send_request(http_request const & req
     if(f_connection == nullptr)
     {
         // TODO: allow user to specify the security instead of using the port
+        //
         addr::addr_range::vector_t address_ranges(request.get_address_ranges());
         if(address_ranges.empty())
         {
@@ -124,7 +143,7 @@ http_response::pointer_t http_sync_client::send_request(http_request const & req
                         r.get_from(),
                         r.get_from().get_port() == 443
                             ? ed::mode_t::MODE_ALWAYS_SECURE
-                            : ed::mode_t::MODE_PLAIN);
+                            : request.get_mode());
 
                 // we successfully connected, so exit the loop
                 break;
@@ -140,15 +159,18 @@ http_response::pointer_t http_sync_client::send_request(http_request const & req
     }
 
     // build and send the request to the server
+    //
     std::string const data(request.get_request(f_keep_alive));
 //std::cerr << "***\n*** request = [" << data << "]\n***\n";
     f_connection->write(data.c_str(), data.length());
 
     // create a response and read the server's answer in that object
+    //
     http_response::pointer_t p(new http_response);
     read_response(p);
 
     // keep connection for further calls?
+    //
     if(!f_keep_alive
     || p->get_header("connection") == "close")
     {
@@ -218,18 +240,19 @@ SNAP_LOG_TRACE
             char const *p(protocol.c_str());
             if(strncmp(p, "HTTP/1.0 ", 9) == 0)
             {
-                f_response->set_protocol(http_response::protocol_t::HTTP_1_0);
+                f_response->set_protocol(http_protocol_t::HTTP_1_0);
                 p += 9; // skip protocol
             }
             else if(strncmp(p, "HTTP/1.1 ", 9) == 0)
             {
-                f_response->set_protocol(http_response::protocol_t::HTTP_1_1);
+                f_response->set_protocol(http_protocol_t::HTTP_1_1);
                 p += 9; // skip protocol
             }
             else
             {
                 // HTTP/2 is in the making, but it does not seem to
                 // be officially out yet...
+                //
                 SNAP_LOG_ERROR
                     << "unknown protocol \""
                     << protocol
@@ -237,7 +260,9 @@ SNAP_LOG_TRACE
                     << SNAP_LOG_SEND;
                 throw client_io_error("read I/O error while reading HTTP protocol in response.");
             }
+
             // skip any extra spaces (should be none)
+            //
             for(; isspace(*p); ++p);
             int count(0);
             int response_code(0);

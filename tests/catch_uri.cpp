@@ -427,7 +427,7 @@ CATCH_TEST_CASE("uri", "[domain]")
             part = 0;
             for(auto const & s : segments)
             {
-                CATCH_REQUIRE(uri.path_folder_name(part) == s);
+                CATCH_REQUIRE(uri.path_segment(part) == s);
                 CATCH_REQUIRE(*path_it == s);
                 CATCH_REQUIRE(uri.get_part("path", part) == s);
                 ++path_it;

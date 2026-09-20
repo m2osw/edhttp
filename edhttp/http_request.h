@@ -17,6 +17,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+// self
+//
+#include    <edhttp/uri.h>
+#include    <edhttp/http_response.h>
+
+
 // eventdispatcher
 //
 #include    <eventdispatcher/tcp_bio_client.h>
@@ -29,7 +35,6 @@
 
 // C++
 //
-#include    <map>
 #include    <vector>
 
 
@@ -39,22 +44,19 @@ namespace edhttp
 
 
 
-// name / value pairs
-
-// attachment buffer
-
-
 class http_request
 {
 public:
     typedef std::shared_ptr<http_request>       pointer_t;
 
+    ed::mode_t                  get_mode() const;
     addr::addr_range::vector_t  get_address_ranges() const;
-    bool                        unique_host() const;
+    //bool                        unique_host() const; -- we use the name from f_uri, so it should always be unique
     std::string                 get_host() const;
-    bool                        unique_port() const;
+    //bool                        unique_port() const; -- we use the port from f_uri, so it should always be unique
     int                         get_port() const;
     std::string                 get_agent_name() const;
+    http_protocol_t             get_protocol() const;
     std::string                 get_method() const;
     std::string                 get_path() const;
     std::string                 get_header(std::string const & name) const;
@@ -62,15 +64,19 @@ public:
     std::string                 get_body() const; // also returns data
     std::string                 get_request(bool keep_alive) const;
 
-    void                        set_uri(std::string const & uri);
-    void                        set_address_ranges(addr::addr_range::vector_t const & address_ranges);
+    void                        set_mode(ed::mode_t mode);
+    void                        set_uri(std::string const & request_uri);
+    void                        set_uri(uri const & request_uri);
+    //void                        set_address_ranges(addr::addr_range::vector_t const & address_ranges);
     void                        set_host(std::string const & host);
     void                        set_port(int port);
     void                        set_agent_name(std::string const & agent_name);
+    void                        set_protocol(http_protocol_t protocol);
     void                        set_method(std::string const & method);
     void                        set_path(std::string const & path);
     void                        set_header(std::string const & name, std::string const & value);
     void                        set_post(std::string const & name, std::string const & value);
+    void                        set_query_option(std::string const & name, std::string const & value);
     void                        set_basic_auth(std::string const & username, std::string const & secret);
     void                        set_data(std::string const & data);
     void                        set_body(std::string const & body);
@@ -79,12 +85,17 @@ private:
     typedef std::map<std::string, std::string>  header_t;
     typedef std::vector<char>                   attachment_t;
 
+    // I replaced all of these parts with the f_uri instead
     //std::string                 f_host = std::string();
     //std::int32_t                f_port = -1;
-    addr::addr_range::vector_t  f_address_ranges = addr::addr_range::vector_t();
+    //std::string                 f_path = std::string();
+    //addr::addr_range::vector_t  f_address_ranges = addr::addr_range::vector_t();
+    uri                         f_uri = uri();
+
+    ed::mode_t                  f_mode = ed::mode_t::MODE_PLAIN;
     std::string                 f_agent_name = std::string("edhttp");
+    http_protocol_t             f_protocol = http_protocol_t::UNKNOWN;
     std::string                 f_method = std::string();
-    std::string                 f_path = std::string();
     header_t                    f_headers = header_t();
     header_t                    f_post = header_t();
     std::string                 f_body = std::string();

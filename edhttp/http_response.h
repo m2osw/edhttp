@@ -17,16 +17,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
-// eventdispatcher
-//
-//#include    <eventdispatcher/tcp_bio_client.h>
-
-
-// libaddr
-//
-//#include    <libaddr/addr_range.h>
-
-
 // C++
 //
 #include    <map>
@@ -40,29 +30,38 @@ namespace edhttp
 
 
 
+enum class http_protocol_t
+{
+    UNKNOWN,
+
+    HTTP_1_0,
+    HTTP_1_1,
+    HTTP_2,
+    HTTP_3,
+};
+
+
+typedef std::uint16_t           http_response_code_t; // 1XX to 5XX or 0 when undefined
+
+constexpr http_response_code_t const    HTTP_RESPONSE_CODE_UNDEFINED = 0;
+
+
 class http_response
 {
 public:
     typedef std::shared_ptr<http_response>      pointer_t;
 
-    enum class protocol_t
-    {
-        UNKNOWN,
-        HTTP_1_0,
-        HTTP_1_1
-    };
-
     std::string                 get_original_header() const;
-    protocol_t                  get_protocol() const;
-    int                         get_response_code() const;
+    http_protocol_t             get_protocol() const;
+    http_response_code_t        get_response_code() const;
     std::string                 get_http_message() const;
     bool                        has_header(std::string const & name) const;
     std::string                 get_header(std::string const & name) const;
     std::string                 get_response() const;
 
     void                        append_original_header(std::string const & header);
-    void                        set_protocol(protocol_t protocol);
-    void                        set_response_code(int code);
+    void                        set_protocol(http_protocol_t protocol);
+    void                        set_response_code(http_response_code_t code);
     void                        set_http_message(std::string const& message);
     void                        set_header(std::string const & name, std::string const & value);
     void                        set_response(std::string const & response);
@@ -71,8 +70,8 @@ private:
     typedef std::map<std::string, std::string>  header_t;
 
     std::string                 f_original_header = std::string();
-    protocol_t                  f_protocol = protocol_t::UNKNOWN;
-    int32_t                     f_response_code = 0;
+    http_protocol_t             f_protocol = http_protocol_t::UNKNOWN;
+    http_response_code_t        f_response_code = HTTP_RESPONSE_CODE_UNDEFINED;
     std::string                 f_http_message = std::string();
     header_t                    f_header = header_t();
     std::string                 f_response = std::string();

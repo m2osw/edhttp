@@ -67,31 +67,52 @@ namespace edhttp
 
 
 
+ed::mode_t http_request::get_mode() const
+{
+    return f_mode;
+}
+
+
 addr::addr_range::vector_t http_request::get_address_ranges() const
 {
-    return f_address_ranges;
+    addr::addr_parser p;
+
+    p.set_default_port(f_uri.get_port());
+
+    // TODO: if we are using HTTP/3, we should use UDP here
+    //
+    p.set_protocol(IPPROTO_TCP);
+
+    p.set_sort_order(addr::SORT_IPV6_FIRST | addr::SORT_NO_EMPTY);
+
+    p.set_allow(addr::allow_t::ALLOW_REQUIRED_ADDRESS, true);
+    p.set_allow(addr::allow_t::ALLOW_MULTI_ADDRESSES_COMMAS, true);
+    p.set_allow(addr::allow_t::ALLOW_MULTI_ADDRESSES_SPACES, true);
+
+    return p.parse(f_uri.full_domain());
+    //return f_address_ranges;
 }
 
 
-bool http_request::unique_host() const
-{
-    bool first(true);
-    std::string hostname;
-    for(auto const & r : f_address_ranges)
-    {
-        if(first)
-        {
-            first = false;
-            hostname = r.get_from().get_hostname();
-        }
-        else if(hostname != r.get_from().get_hostname())
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
+//bool http_request::unique_host() const
+//{
+//    bool first(true);
+//    std::string hostname;
+//    for(auto const & r : f_address_ranges)
+//    {
+//        if(first)
+//        {
+//            first = false;
+//            hostname = r.get_from().get_hostname();
+//        }
+//        else if(hostname != r.get_from().get_hostname())
+//        {
+//            return false;
+//        }
+//    }
+//
+//    return true;
+//}
 
 
 /** \brief Retrieve the hostname.
@@ -114,52 +135,60 @@ bool http_request::unique_host() const
  * which is why this function only returns the hostname found in the
  * first address.
  *
+ * \todo
+ * Verify that IP addresses work here. The old version would convert
+ * the IP to a string if the host was not defined.
+ *
  * \return The host name or IP of the specified address.
  */
 std::string http_request::get_host() const
 {
-    if(f_address_ranges.empty())
-    {
-        return std::string();
-    }
+    return f_uri.full_domain();
 
-    std::string hostname(f_address_ranges[0].get_from().get_hostname());
-    if(hostname.empty())
-    {
-        return f_address_ranges[0].get_from().to_ipv4or6_string(addr::STRING_IP_ADDRESS);
-    }
+    //if(f_address_ranges.empty())
+    //{
+    //    return std::string();
+    //}
 
-    return hostname;
+    //std::string hostname(f_address_ranges[0].get_from().get_hostname());
+    //if(hostname.empty())
+    //{
+    //    return f_address_ranges[0].get_from().to_ipv4or6_string(addr::STRING_IP_ADDRESS);
+    //}
+
+    //return hostname;
 }
 
 
-bool http_request::unique_port() const
-{
-    int port(-1);
-    for(auto const & r : f_address_ranges)
-    {
-        if(port == -1)
-        {
-            port = r.get_from().get_port();
-        }
-        else if(port != r.get_from().get_port())
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
+//bool http_request::unique_port() const
+//{
+//    int port(-1);
+//    for(auto const & r : f_address_ranges)
+//    {
+//        if(port == -1)
+//        {
+//            port = r.get_from().get_port();
+//        }
+//        else if(port != r.get_from().get_port())
+//        {
+//            return false;
+//        }
+//    }
+//
+//    return true;
+//}
 
 
 int http_request::get_port() const
 {
-    if(f_address_ranges.empty())
-    {
-        return -1;
-    }
+    return f_uri.get_port();
 
-    return f_address_ranges[0].get_from().get_port();
+    //if(f_address_ranges.empty())
+    //{
+    //    return -1;
+    //}
+
+    //return f_address_ranges[0].get_from().get_port();
 }
 
 
@@ -169,9 +198,18 @@ std::string http_request::get_agent_name() const
 }
 
 
-void http_request::set_address_ranges(addr::addr_range::vector_t const & address_ranges)
+// if we ever need this, consider adding it, but at this time, the
+// f_uri holds all the necessary info
+//
+//void http_request::set_address_ranges(addr::addr_range::vector_t const & address_ranges)
+//{
+//    f_address_ranges = address_ranges;
+//}
+
+
+http_protocol_t http_request::get_protocol() const
 {
-    f_address_ranges = address_ranges;
+    return f_protocol;
 }
 
 
@@ -183,7 +221,17 @@ std::string http_request::get_method() const
 
 std::string http_request::get_path() const
 {
-    return f_path;
+    std::string path("/");
+    path += f_uri.path();
+
+    std::string qs(f_uri.query_string());
+    if(!qs.empty())
+    {
+        path += '?';
+        path += qs;
+    }
+
+    return path;
 }
 
 
@@ -213,6 +261,18 @@ std::string http_request::get_body() const
 }
 
 
+/** \brief Generate a string buffer with the complete HTTP/1.1 request.
+ *
+ * This function generates a string with all the necessary fields
+ * defined in the HTTP request. This includes the method at the top,
+ * headers, an empty line, and a body if any was defined (only for
+ * POST, PUT, and similar methods).
+ *
+ * \param[in] keep_alive  Whether to keep the connection alive or
+ * immediately close it.
+ *
+ * \return A string of the entire request. It may include binary data.
+ */
 std::string http_request::get_request(bool keep_alive) const
 {
     std::stringstream request;
@@ -228,7 +288,7 @@ std::string http_request::get_request(bool keep_alive) const
     if(f_has_attachment)
     {
         request << (f_method.empty() ? g_name_edhttp_method_post : f_method.c_str())
-                << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
+                << ' ' << get_path() << ' ' << g_name_edhttp_http_1_1 << "\r\n";
 
         throw logic_error("http_client_server.cpp:get_request(): attachments not supported yet");
     }
@@ -238,43 +298,42 @@ std::string http_request::get_request(bool keep_alive) const
         //       a GET and a query string
         //
         request << (f_method.empty() ? g_name_edhttp_method_post : f_method.c_str())
-                << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
+                << ' ' << get_path() << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         content_type = "application/x-www-form-urlencoded";
 
-        body = "";
         for(auto it(f_post.begin()); it != f_post.end(); ++it)
         {
             if(!body.empty())
             {
                 // separate parameters by ampersands
+                //
                 body += "&";
             }
-            // TODO: escape & and such
-            //
-            body += it->first + "=" + it->second;
+            body += urlencode(it->first) + "=" + urlencode(it->second);
         }
     }
     else if(f_has_data)
     {
         request << (f_method.empty() ? g_name_edhttp_method_post : f_method.c_str())
-                << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
+                << ' ' << get_path() << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         body = f_body;
     }
     else if(f_has_body)
     {
         request << (f_method.empty() ? g_name_edhttp_method_get : f_method.c_str())
-                << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
+                << ' ' << get_path() << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         body = f_body;
     }
     else
     {
         request << (f_method.empty() ? g_name_edhttp_method_get : f_method.c_str())
-                << ' ' << f_path << ' ' << g_name_edhttp_http_1_1 << "\r\n";
+                << ' ' << get_path() << ' ' << g_name_edhttp_http_1_1 << "\r\n";
         // body is empty by default
         //body = "";
     }
 
     // place Host first because some servers are that stupid
+    //
     request << g_name_edhttp_field_host << ": " << get_host() << "\r\n";
 
     bool found_user_agent(false);
@@ -352,72 +411,100 @@ std::string http_request::get_request(bool keep_alive) const
 }
 
 
-/** \brief Set the host, port, and path at once.
+/** \brief Set the mode to use by default.
  *
- * HTTP accepts full URIs in the GET, POST, etc. line
- * so the following would be valid:
+ * When a request is sent to one of the clients, it uses this mode as the
+ * default mode. The mode may be forced to secure if the port is recognized
+ * as a secure port (i.e. 443).
  *
- *    GET https://snapwebsites.org/some/path?a=view HTTP/1.1
+ * The default is a plain connection which works just fine within your
+ * network.
  *
- * However, we break it down in a few separate parts instead, because
- * (a) we need the host to connect to the server, (b) we need the port
- * to connect to the server:
+ * \param[in] mode  The connection mode to use for this request.
  *
- * 1. Remove protocol, this defines whether we use plain text (http)
- *    or encryption (https/ssl)
- * 2. Get the port, if not specified after the domain, use the default
- *    of the specified URI protocol
- * 3. Domain name is moved to the 'Host: ...' header
- * 4. Path and query string are kept as is
+ * \sa get_mode()
+ */
+void http_request::set_mode(ed::mode_t mode)
+{
+    f_mode = mode;
+}
+
+
+/** \brief Set the host, port, path, query string, etc.
  *
- * So the example above changes to:
+ * Set the URI of this request as a string.
  *
- *    GET /some/path?a=view HTTP/1.1
- *    Host: snapwebsites.org
+ * The HTTP protocol expects a method, a path, a query string, and a host:
  *
- * We use a plain text connection (http:) and the port is the default
- * port for the HTTP protocol (80). That information does not appear
- * in the HTTP header.
+ *     GET /some/path?a=view HTTP/1.1
+ *     Host: snapwebsites.org:<port>
+ *     Authenticate: <username>:<password>
+ *
+ * However, to send the request, we need to break it down because:
+ *
+ * 1. The path and query string need to be separated from the rest
+ *    (scheme, domain, anchor)
+ * 2. The anchor is ignored in a request, it's just a point within the
+ *    result that browsers scroll to
+ * 3. The domain is moved to the Host: ... header; this can be an IP address
+ * 4. The port is necessary as a separate number to connect to the server;
+ *    if not specified, then it gets derived from the scheme
+ * 5. If a username and password are specified, we need a separate
+ *    authentication header
+ *
+ * Note that the scheme does not appear in the HTTP request. That's something
+ * used to know how to connect to the server.
+ *
+ * \note
+ * If you use port 443, the system will automatically switch to HTTPS.
+ * You can also force the use of TLS encryption by changing the mode
+ * from the default (ed::mode_t::MODE_PLAIN) to the secure one
+ * (ed::mode_t::MODE_ALWAYS_SECURE).
+ *
+ * \todo
+ * At this time, this immediately transforms the \p request_uri to
+ * a list of IPs. However, if we want to reuse the same request over
+ * and over again, we probably want to recheck the set of addresses
+ * which I think would mean saving the `uri` object and get the
+ * range of addresses at the point we attempt connections.
  *
  * \param[in] request_uri  The URI to save in this HTTP request.
+ *
+ * \sa set_mode()
  */
 void http_request::set_uri(std::string const & request_uri)
 {
-    uri u(request_uri);
+    uri u;
+    u.set_uri(request_uri, true, true);
+    set_uri(u);
+}
 
-    f_address_ranges = u.address_ranges();
 
-    // use set_path() to make sure we get an absolute path
-    // (which is not the case by default)
-    set_path(u.path());
-
-    // keep the query string parameters if any are defined
-    std::string const q(u.query_string());
-    if(!q.empty())
-    {
-        f_path += "?";
-        f_path += q;
-    }
+void http_request::set_uri(uri const & request_uri)
+{
+    f_uri = request_uri;
 }
 
 
 void http_request::set_host(std::string const & host)
 {
-    int port(get_port());
-    if(port == -1)
-    {
-        port = 80;
-    }
+    f_uri.set_domain(host);
 
-    //f_host = host;
-    addr::addr_parser p;
-    p.set_default_port(port);
-    p.set_protocol(IPPROTO_TCP);
-    p.set_sort_order(addr::SORT_IPV6_FIRST | addr::SORT_NO_EMPTY);
-    p.set_allow(addr::allow_t::ALLOW_REQUIRED_ADDRESS, true);
-    p.set_allow(addr::allow_t::ALLOW_MULTI_ADDRESSES_COMMAS, true);
-    p.set_allow(addr::allow_t::ALLOW_MULTI_ADDRESSES_SPACES, true);
-    f_address_ranges = p.parse(host);
+    //int port(get_port());
+    //if(port == -1)
+    //{
+    //    port = 80;
+    //}
+
+    ////f_host = host;
+    //addr::addr_parser p;
+    //p.set_default_port(port);
+    //p.set_protocol(IPPROTO_TCP);
+    //p.set_sort_order(addr::SORT_IPV6_FIRST | addr::SORT_NO_EMPTY);
+    //p.set_allow(addr::allow_t::ALLOW_REQUIRED_ADDRESS, true);
+    //p.set_allow(addr::allow_t::ALLOW_MULTI_ADDRESSES_COMMAS, true);
+    //p.set_allow(addr::allow_t::ALLOW_MULTI_ADDRESSES_SPACES, true);
+    //f_address_ranges = p.parse(host);
 }
 
 
@@ -435,17 +522,19 @@ void http_request::set_host(std::string const & host)
  */
 void http_request::set_port(int port)
 {
-    for(auto & r : f_address_ranges)
-    {
-        if(r.has_from())
-        {
-            r.get_from().set_port(port);
-        }
-        if(r.has_to())
-        {
-            r.get_to().set_port(port);
-        }
-    }
+    f_uri.set_port(port);
+
+    //for(auto & r : f_address_ranges)
+    //{
+    //    if(r.has_from())
+    //    {
+    //        r.get_from().set_port(port);
+    //    }
+    //    if(r.has_to())
+    //    {
+    //        r.get_to().set_port(port);
+    //    }
+    //}
 }
 
 
@@ -460,6 +549,12 @@ void http_request::set_agent_name(std::string const & agent_name)
 }
 
 
+void http_request::set_protocol(http_protocol_t protocol)
+{
+    f_protocol = protocol;
+}
+
+
 void http_request::set_method(std::string const & method)
 {
     f_method = method;
@@ -468,22 +563,10 @@ void http_request::set_method(std::string const & method)
 
 void http_request::set_path(std::string const & path)
 {
-    // TODO: better verify path validity
-    if(path.empty())
-    {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wrestrict"
-        f_path = "/";
-#pragma GCC diagnostic pop
-    }
-    else if(path[0] == '/')
-    {
-        f_path = path;
-    }
-    else
-    {
-        f_path = "/" + path;
-    }
+    // force a set by making the path an absolute path
+    // (a double "/" is safe here)
+    //
+    f_uri.set_path("/" + path);
 }
 
 
