@@ -33,6 +33,11 @@
 #include    <libaddr/addr_range.h>
 
 
+// snapdev
+//
+#include    <snapdev/callback_manager.h>
+
+
 
 namespace edhttp
 {

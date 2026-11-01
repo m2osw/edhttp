@@ -25,11 +25,17 @@
 // libaddr
 //
 #include    <libaddr/addr_range.h>
+#include    <libaddr/addr_parser.h>
 
 
 // advgetopt
 //
 #include    <advgetopt/utils.h>
+
+
+// snapdev
+//
+#include    <snapdev/timespec_ex.h>
 
 
 // C++
@@ -88,6 +94,7 @@ public:
     //
     void                        set_scheme(std::string const & uri_scheme);
     std::string const &         scheme() const;
+    bool                        is_scheme_secure() const;
 
     // domain & sub-domains handling
     //
@@ -100,8 +107,8 @@ public:
     std::string                 sub_domain(int part) const;
     advgetopt::string_list_t const &
                                 sub_domains_list() const;
-    addr::addr_range::vector_t const &
-                                address_ranges();
+    addr::addr::vector_t const &
+                                addresses(addr::sort_t order = addr::SORT_IPV6_FIRST | addr::SORT_NO_EMPTY | addr::SORT_INTERLEAVED) const;
 
     // port handling
     //
@@ -109,6 +116,7 @@ public:
     void                        set_port(int port);
     int                         get_port() const;
     std::string                 get_str_port() const;
+    bool                        is_port_secure() const;
 
     // path handling
     //
@@ -182,14 +190,19 @@ private:
     uri_options_t               f_options = uri_options_t();
     uri_options_t               f_query_strings = uri_options_t();
     std::string                 f_anchor = std::string();
-    addr::addr_range::vector_t  f_address_ranges = addr::addr_range::vector_t();
+    mutable snapdev::timespec_ex
+                                f_valid_addresses = snapdev::timespec_ex();
+    mutable addr::addr::vector_t
+                                f_addresses = addr::addr::vector_t();
     std::string                 f_last_error_message = std::string();
 };
 
 
-std::string          urlencode(std::string const & uri, char const * accepted = "");
-std::string          urldecode(std::string const & uri, bool relax = false);
-int                  scheme_to_port(std::string const & uri_scheme);
+std::string         urlencode(std::string const & uri, char const * accepted = "");
+std::string         urldecode(std::string const & uri, bool relax = false);
+int                 scheme_to_port(std::string const & uri_scheme);
+bool                is_scheme_secure(std::string const & uri_scheme);
+bool                is_port_secure(int port);
 
 
 

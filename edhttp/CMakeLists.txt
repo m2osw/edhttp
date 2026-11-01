@@ -29,6 +29,7 @@ configure_file(
 add_library(${PROJECT_NAME} SHARED
     cache_control.cpp
     health.cpp
+    http_client_connection.cpp
     http_cookie.cpp
     http_date.cpp
     http_link.cpp
@@ -41,6 +42,7 @@ add_library(${PROJECT_NAME} SHARED
     string_part.cpp
     token.cpp
     uri.cpp
+    utils.cpp
     validator_uri.cpp
     version.cpp
     weighted_http_string.cpp
@@ -54,6 +56,15 @@ add_library(${PROJECT_NAME} SHARED
     compression/gzip.cpp
     compression/tar.cpp
     compression/xz.cpp
+
+    http/http_client_connection_impl.cpp
+    http/http_domain.cpp
+    http/http_tcp_client_async_connection.cpp
+    http/http_tcp_client_connection.cpp
+    http/http_udp_connection.cpp
+    # http/http_udp_responsive_connection.cpp -- not too sure why I thought I'd need this one?
+    http/runner.cpp
+    http/thread_signal_handler.cpp
 )
 
 target_compile_definitions(${PROJECT_NAME}
@@ -67,9 +78,10 @@ target_include_directories(${PROJECT_NAME}
         ${EVENTDISPATCHER_INCLUDE_DIRS}
         ${LIBEXCEPT_INCLUDE_DIRS}
         ${LIBTLD_INCLUDE_DIRS}
-        ${SNAPLOGGER_INCLUDE_DIRS}
         ${MAGIC_INCLUDE_DIRS}
+        ${MAGPIE_INCLUDE_DIRS}
         ${SNAPDEV_INCLUDE_DIRS}
+        ${SNAPLOGGER_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -78,8 +90,9 @@ target_link_libraries(${PROJECT_NAME}
         ${EVENTDISPATCHER_LIBRARIES}
         ${LIBEXCEPT_LIBRARIES}
         ${LIBTLD_LIBRARIES}
-        ${SNAPLOGGER_LIBRARIES}
         ${MAGIC_LIBRARIES}
+        ${MAGPIE_LIBRARIES}
+        ${SNAPLOGGER_LIBRARIES}
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

@@ -1124,11 +1124,15 @@ CATCH_TEST_CASE("compressor_error", "[compression][error]")
 
         // also a token cannot start with the '$' character
         //
-        CATCH_REQUIRE_THROWS_MATCHES(
-                  new compressor_named("$name")
-                , edhttp::invalid_token
-                , Catch::Matchers::ExceptionMessage(
-                          "edhttp_exception: a compressor name (\"$name\") must be a valid HTTP token."));
+        // TODO: determine why I had that one; this is not true at all and
+        //       never was although maybe it was for use to support some
+        //       kind of variables
+        //
+        //CATCH_REQUIRE_THROWS_MATCHES(
+        //          new compressor_named("$name")
+        //        , edhttp::invalid_token
+        //        , Catch::Matchers::ExceptionMessage(
+        //                  "edhttp_exception: a compressor name (\"$name\") must be a valid HTTP token."));
     }
     CATCH_END_SECTION()
 }

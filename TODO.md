@@ -1,4 +1,10 @@
 
+* Add support for streaming
+  - the reading of an HTTP body, whether compressed or not should always
+    be through a form of stream
+  - there are several modes for reading streams and that applies to HTTP/1.1,
+    HTTP/2, and HTTP/3 and all need to be taken in account
+* Add Brotli compression (enhanced LZ77 by Google "br" encoder/decoder)
 * Remove duplicated code for time related convertions/tests (mktime, LEAP).
 * Look into supporting all http protocols: HTTP/HTTPS/HTTP2/HTTP3 (libhttp2?)
   - for HTTP/3, the Google library is probably best (quiche)
@@ -10,7 +16,7 @@
 * Added a normalization service which can load a file and normalize "anything"
   - we often want to normalize things such as the user agent, this tool could
     be used for that
-  - read a file to determine the normalizations
+  - read a file to determine the normalization
   - the format of the file can define a "group" (i.e. user agent, browser
     version, etc.)
 * Look into making the list of tags dynamic so new libraries can register

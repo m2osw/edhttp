@@ -28,7 +28,31 @@ namespace edhttp
 
 
 
-bool is_token(std::string const & token);
+class token
+    : public std::string
+{
+public:
+    using std::string::string;
+    using std::string::operator =;
+
+                                token(token const & rhs) = default;
+                                token(token && rhs) = default;
+
+                                token(std::string const & s);
+                                token(std::string && s);
+
+    std::strong_ordering        operator <=> (token const & rhs);
+
+    bool                        is_valid() const;
+
+private:
+};
+
+
+
+bool        is_token(std::string const & token);
+bool        is_restricted_token(std::string const & token);
+int         compare_tokens(std::string const & lhs, std::string const & rhs, bool underscore_equal_dash = false);
 
 
 

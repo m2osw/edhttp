@@ -285,7 +285,7 @@ std::string date_to_string(time_t seconds, date_format_t date_format)
  *
  * \param[in] date  The date to convert to a time_t.
  *
- * \return The date and time as a Unix time_t number, -1 if the convertion fails.
+ * \return The date and time as a Unix time_t number, -1 if the conversion fails.
  */
 time_t string_to_date(std::string const & date)
 {
@@ -720,6 +720,7 @@ time_t string_to_date(std::string const & date)
 
     if(!parser.parse())
     {
+        errno = EINVAL;
         return -1;
     }
 
@@ -743,6 +744,7 @@ time_t string_to_date(std::string const & date)
     int const max_mday(snapdev::unix_timestamp_month_days(parser.f_time_info.tm_year, parser.f_time_info.tm_mon + 1));
     if(parser.f_time_info.tm_mday > max_mday)
     {
+        errno = EINVAL;
         return -1;
     }
 
@@ -750,6 +752,7 @@ time_t string_to_date(std::string const & date)
     // let's make time
     //
     parser.f_time_info.tm_year -= 1900;
+    errno = 0;
     return timegm(&parser.f_time_info);
 }
 

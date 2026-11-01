@@ -25,11 +25,23 @@
 #include    "edhttp/http_date.h"
 #include    "edhttp/names.h"
 #include    "edhttp/token.h"
+#include    "edhttp/uri.h"
+
+
+// libutf8
+//
+#include    <libutf8/libutf8.h>
+
+
+// libtld
+//
+#include    <libtld/tld.h>
 
 
 // snapdev
 //
 #include    <snapdev/hexadecimal_string.h>
+#include    <snapdev/compare_switch_string.h>
 
 
 // C
@@ -134,7 +146,7 @@ http_cookie::http_cookie(std::string const & name, std::string const & value)
 {
     if(!is_token(f_name))
     {
-        throw cookie_parse_exception("cookie name cannot be empty, start with '$', or include a reserved character.");
+        throw cookie_parse_exception("cookie name cannot be empty or include a reserved character.");
     }
 
     // TODO: here f_snap would always be nullptr but in snap we could
@@ -195,42 +207,51 @@ void http_cookie::set_value(std::string const & value)
  *
  * \sa get_domain();
  */
-void http_cookie::set_domain(std::string const & domain)
+void http_cookie::set_domain(std::string domain)
 {
-    f_domain = domain;
-
-    // TODO?
-    // Enhance the check so we don't accept two periods one after
-    // another or two dashes or a name that starts/ends with invalid
-    // characters (i.e. cannot start/end with a dash.) Although some
-    // of those would not be necessary if we check the domain against
-    // the website domain name.
-    int max_len(f_domain.length());
-    if(max_len > 0 && f_domain[0] == '.')
+    if(domain.empty())
     {
-        f_domain = f_domain.substr(1);
-        max_len = f_domain.length();
+        f_domain.clear();
+        return;
+    }
+
+    std::size_t max_len(domain.length());
+    if(max_len > 0 && domain[0] == '.')
+    {
+        domain.erase(0, 1);
+        max_len = domain.length();
     }
     if(max_len == 0)
     {
-        throw cookie_parse_exception("the domain of a cookie cannot be empty.");
-    }
-    for(int i(0); i < max_len; ++i)
-    {
-        // TODO: use libtld instead
-        // TBD -- How is that supporting Unicode characters in domain names?
-        char c(f_domain[i]);
-        if((c < 'A' || c > 'Z')
-        && (c < 'a' || c > 'z')
-        && (c < '0' || c > '9')
-        && c != '.' && c != '-' && c != '_')
-        {
-            throw cookie_parse_exception("the domain of a cookie must only include domain name compatible characters.");
-        }
+        throw cookie_parse_exception("the domain of a cookie cannot just be \".\".");
     }
 
-    // TODO: add a check to make sure this is a valid domain name
-    //       (i.e. to the minimum "domain + TLD")
+    tld_info info;
+    char const * fd(domain.c_str());
+    tld_result const r(::tld(fd, &info));
+    if(r != TLD_RESULT_SUCCESS)
+    {
+        // the URI is invalid or it doesn't end with a known TLD
+        //
+        throw cookie_parse_exception("invalid domain name.");
+    }
+
+    // TBD: is the tld() call above sufficient and we can drop this for()
+    //      loop altogether? (I think it is, let's write a test?)
+    //
+    //for(std::size_t i(0); i < max_len; ++i)
+    //{
+    //    char c(domain[i]);
+    //    if((c < 'A' || c > 'Z')
+    //    && (c < 'a' || c > 'z')
+    //    && (c < '0' || c > '9')
+    //    && c != '.' && c != '-' && c != '_')
+    //    {
+    //        throw cookie_parse_exception("the domain of a cookie must only include domain name compatible characters.");
+    //    }
+    //}
+
+    f_domain = domain;
 }
 
 
@@ -250,18 +271,9 @@ void http_cookie::set_domain(std::string const & domain)
  */
 void http_cookie::set_path(std::string const & path)
 {
-    // TODO:
-    // TBD -- How is that supporting Unicode characters in paths?
-    // (we may have to change them to some %XX syntax
-    int max_len(path.length());
-    for(int i(0); i < max_len; ++i)
+    if(!libutf8::is_valid_utf8(path))
     {
-        char c(f_domain[i]);
-        if((c < ' ' || c > '~')
-        && c != ',' && c != ';')
-        {
-            throw cookie_parse_exception("the path of a cookie must only include ASCII characters except controls, ',' and ';'.");
-        }
+        throw cookie_parse_exception("the path of a cookie must only include ASCII characters except controls, ',' and ';'.");
     }
 
     f_path = path;
@@ -281,6 +293,7 @@ void http_cookie::set_path(std::string const & path)
 void http_cookie::set_delete()
 {
     // January 1, 1970 00:00:00 is represented as 0
+    //
     f_expire = 0;
 }
 
@@ -301,7 +314,9 @@ void http_cookie::set_delete()
  */
 void http_cookie::set_session()
 {
-    // invalid expiration date
+    // invalid expiration date; will not be included which makes the cookie
+    // a session cookie (deleted when the window is closed)
+    //
     f_expire = -1;
 }
 
@@ -334,30 +349,40 @@ void http_cookie::set_session()
  *
  * \sa set_session();
  * \sa set_delete();
+ * \sa set_expire_in()
  * \sa get_expire();
  * \sa get_type();
  */
 void http_cookie::set_expire(std::string const & date_time)
 {
-    time_t const now(time(nullptr));
     time_t const seconds(string_to_date(date_time));
-    if(seconds - now > 86400LL * 365LL)
+    if(seconds == -1 && errno != 0)
     {
-        // save 'now + 1 year' instead of date_time which is further in
-        // the future and thus not HTTP 1.1 compatible
+        // TODO: show the errno and the input so we know why it failed
         //
-        f_expire = now + 86400LL * 365LL;
+        throw cookie_parse_exception("cookie expiration time invalid.");
     }
-    else if(seconds < 0)
+
+    if(seconds < 0)
     {
-        // the date is past, that means we want to delete
-        // (TBD: should this be an error instead?)
+        // definitely too late
         //
         f_expire = 0;
     }
     else
     {
-        f_expire = seconds;
+        time_t const now(time(nullptr));
+        if(seconds - now > COOKIE_MAXIMUM_TIMEOUT)
+        {
+            // save 'now + 1 year' instead of date_time which is further in
+            // the future and thus not HTTP 1.1 compatible
+            //
+            f_expire = now + COOKIE_MAXIMUM_TIMEOUT;
+        }
+        else
+        {
+            f_expire = seconds;
+        }
     }
 }
 
@@ -383,17 +408,32 @@ void http_cookie::set_expire(std::string const & date_time)
  * \sa get_expire();
  * \sa set_delete();
  * \sa set_session();
+ * \sa get_type();
  */
-void http_cookie::set_expire_in(int64_t seconds)
+void http_cookie::set_expire_in(std::int64_t seconds)
 {
-    // clamp to 1 year (max. allowed by HTTP 1.1)
-    if(seconds > 86400LL * 365LL)
+    // clamp to tad over 1 year (max. allowed by HTTP/1.1)
+    //
+    if(seconds > COOKIE_MAXIMUM_TIMEOUT)
     {
-        seconds = 86400LL * 365LL;
+        seconds = COOKIE_MAXIMUM_TIMEOUT;
     }
 
     time_t const now(time(nullptr));
     f_expire = now + seconds;
+}
+
+
+/** \brief Set the same site parameter of the cookie.
+ *
+ * A cookie can be required to only be sent to the exact same site. It can
+ * also be made very lax so it gets sent to any domain.
+ *
+ * \param[in] same_site  The new same site setup.
+ */
+void http_cookie::set_same_site(http_same_site_t same_site)
+{
+    f_same_site = same_site;
 }
 
 
@@ -437,41 +477,6 @@ void http_cookie::set_secure(bool secure)
 void http_cookie::set_http_only(bool http_only)
 {
     f_http_only = http_only;
-}
-
-
-/** \brief Set a comment.
- *
- * This function sets the comment of the cookie.
- *
- * In general this is verbatim information about the cookie in regard to
- * the user privacy.
- *
- * The set_comment_url() can also be used to set a page where the cookie
- * privacy information can be found.
- *
- * \param[in] comment  The comment about this cookie.
- *
- * \sa get_comment();
- */
-void http_cookie::set_comment(std::string const & comment)
-{
-    f_comment = comment;
-}
-
-
-/** \brief Set a comment URL.
- *
- * This function sets the comment URL of the cookie. This is actually
- * made mandatory in the Snap! webserver.
- *
- * \param[in] comment_uri  The URL to a page tha explains the cookie usage.
- *
- * \sa get_comment_uri();
- */
-void http_cookie::set_comment_uri(std::string const & comment_uri)
-{
-    f_comment_uri = comment_uri;
 }
 
 
@@ -539,6 +544,35 @@ http_cookie::http_cookie_type_t http_cookie::get_type() const
 }
 
 
+http_cookie::http_same_site_t http_cookie::get_same_site() const
+{
+    return f_same_site;
+}
+
+
+/** \brief Get the expiration date.
+ *
+ * This function returns the current expiration date. The date represents
+ * different status of the cookie which can be determined by calling the
+ * get_type() function.
+ *
+ * The default is an invalid cookie which means that the cookie is a
+ * session cookie (lasts until the browser is closed.)
+ *
+ * \return The expiration date of this cookie.
+ *
+ * \sa set_expire();
+ * \sa set_expire_in();
+ * \sa set_delete();
+ * \sa set_session();
+ * \sa get_type();
+ */
+time_t http_cookie::get_expire() const
+{
+    return f_expire;
+}
+
+
 /** \brief Get the cookie domain information.
  *
  * This function retreives the current domain information of the cookie.
@@ -568,29 +602,6 @@ std::string const & http_cookie::get_domain() const
 std::string const & http_cookie::get_path() const
 {
     return f_path;
-}
-
-
-/** \brief Get the expiration date.
- *
- * This function returns the current expiration date. The date represents
- * different status of the cookie which can be determined by calling the
- * get_type() function.
- *
- * The default is an invalid cookie which means that the cookie is a
- * session cookie (lasts until the browser is closed.)
- *
- * \return The expiration date of this cookie.
- *
- * \sa set_expire();
- * \sa set_expire_in();
- * \sa set_delete();
- * \sa set_session();
- * \sa get_type();
- */
-time_t http_cookie::get_expire() const
-{
-    return f_expire;
 }
 
 
@@ -629,31 +640,321 @@ bool http_cookie::get_http_only() const
 }
 
 
-/** \brief Retrieve the cookie comment.
+/** \brief Create a cookie read from a header line.
  *
- * This function returns the verbatim cookie comment.
+ * This function parses a `Set-Cookie: ...` line sent to us by a server.
+ * The function expects the value of the `Set-Cookie: ...` field, not
+ * the entire line including the `Set-Cookie` token itself.
  *
- * \return The verbatim comment of the cookie.
+ * The grammar is as follow:
  *
- * \sa set_comment();
+ * \code
+ *     set-cookie-header = "Set-Cookie:" SP set-cookie-string
+ *     set-cookie-string = cookie-pair *( ";" SP cookie-av )
+ *     cookie-pair       = cookie-name "=" cookie-value
+ *     cookie-name       = token
+ *     cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
+ *     cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
+ *                           ; US-ASCII characters excluding CTLs,
+ *                           ; whitespace DQUOTE, comma, semicolon,
+ *                           ; and backslash
+ *     token             = <token, defined in [RFC2616], Section 2.2>
+ *
+ *     cookie-av         = expires-av / max-age-av / domain-av /
+ *                         path-av / secure-av / httponly-av /
+ *                         samesite-av / extension-av
+ *     expires-av        = "Expires=" sane-cookie-date
+ *     sane-cookie-date  = <rfc1123-date, defined in [RFC2616], Section 3.3.1>
+ *     max-age-av        = "Max-Age=" non-zero-digit *DIGIT
+ *                           ; In practice, both expires-av and max-age-av
+ *                           ; are limited to dates representable by the
+ *                           ; user agent.
+ *     non-zero-digit    = %x31-39
+ *                           ; digits 1 through 9
+ *     domain-av         = "Domain=" domain-value
+ *     domain-value      = <subdomain>
+ *                           ; defined in [RFC1034], Section 3.5, as
+ *                           ; enhanced by [RFC1123], Section 2.1
+ *     path-av           = "Path=" path-value
+ *     path-value        = <any CHAR except CTLs or ";">
+ *     secure-av         = "Secure"
+ *     httponly-av       = "HttpOnly"
+ *     extension-av      = <any CHAR except CTLs or ";">
+ *     samesite-av       = "SameSite" BWS "=" BWS samesite-value
+ *     samesite-value    = "Strict" / "Lax" / "None"
+ * \endcode
+ *
+ * Note that the grammar must be followed to the letter for a server
+ * to be supported any number of user agents. Especially, the SP just
+ * after the ':' character should be viewed as an OWS (optional white
+ * space) by a reader.
+ *
+ * \param[in] header  The Set-Cookie header value to be converted.
+ *
+ * \return A new cookie with \p header saved in it.
  */
-std::string const & http_cookie::get_comment() const
+http_cookie http_cookie::from_http_header(std::string const & header)
 {
-    return f_comment;
-}
+    char const * h(header.c_str());
 
+    auto is_white_space = [](char c)
+    {
+        return c == ' ' || c == '\t';
+    };
 
-/** \brief Retrieve the cookie comment URL.
- *
- * This function returns the cookie comment URL.
- *
- * \return The comment URL of the cookie.
- *
- * \sa set_comment_uri();
- */
-std::string const & http_cookie::get_comment_uri() const
-{
-    return f_comment_uri;
+    // skip spaces between the ':' and the cookie name
+    // (these should already be removed by the caller, but just in case)
+    //
+    for(; is_white_space(*h); ++h);
+
+    // capture the start and end positions of the cookie name
+    //
+    char const * s(h);
+    for(; *h != '=' && *h != '\0'; ++h);
+    if(*h != '=')
+    {
+        throw cookie_parse_exception("cookie name must be followed by an equal character.");
+    }
+    char const * e(h);
+    for(; e > s && is_white_space(e[-1]); --e);
+    std::string const name(s, e - s);
+    if(!is_token(name))
+    {
+        throw cookie_parse_exception("cookie name cannot be empty or include a reserved character.");
+    }
+    ++h;
+    for(; is_white_space(*h); ++h);
+
+    // read the value, it can be ASCII (except for a few characters)
+    //
+    // because of the white space trimming, we do this in two steps
+    //
+    s = h;
+    for(; *h != '\0' && *h != ';'; ++h);
+    e = h;
+    for(; e > s && is_white_space(e[-1]); --e);
+    if(e > s + 1 && *s == '"' && e[-1] == '"')
+    {
+        ++s;
+        --e;
+    }
+    std::string const value(s, e - s);
+    if(*h == ';')
+    {
+        ++h;
+    }
+
+    for(char const * v(value.c_str()); *v != '\0'; ++v)
+    {
+        switch(*v)
+        {
+        default:
+            if(static_cast<signed char>(*v) >= '!')
+            {
+                break;
+            }
+            [[fallthrough]];
+        case '"':
+        case ',':
+        case '\\':
+        case 0x7F:
+            throw cookie_parse_exception("unquoted cookie value cannot include special characters.");
+
+        }
+    }
+
+    // now we can create the cookie
+    //
+    http_cookie result(name, value);
+
+    // next we parse the parameters such as Secure or Path=/a/b/c ...
+    //
+    for(;;)
+    {
+        for(; is_white_space(*h); ++h);
+        if(*h == '\0')
+        {
+            break;
+        }
+
+        // read the parameter name
+        //
+        s = h;
+        for(; *h != '=' && *h != ';' && *h != '\0'; ++h);
+        e = h;
+        for(; e > s && is_white_space(e[-1]); --e);
+        std::string param_name(s, e - s);
+        bool const has_value(*h == '=');
+        std::string param_value;
+        if(has_value)
+        {
+            ++h;
+            for(; is_white_space(*h); ++h);
+
+            // read the value, it can be ASCII (except for a few characters)
+            //
+            // because of the white space trimming, we do this in two steps
+            //
+            s = h;
+            for(; *h != '\0' && *h != ';'; ++h);
+            e = h;
+            for(; e > s && is_white_space(e[-1]); --e);
+            param_value = std::string(s, e - s);
+            if(*h == ';')
+            {
+                ++h;
+            }
+
+            for(char const * v(param_value.c_str()); *v != '\0'; ++v)
+            {
+                switch(*v)
+                {
+                default:
+                    if(static_cast<signed char>(*v) >= '!')
+                    {
+                        break;
+                    }
+                    [[fallthrough]];
+                case '"':
+                case ',':
+                case '\\':
+                case 0x7F:
+                    throw cookie_parse_exception("unquoted cookie value cannot include special characters.");
+
+                }
+            }
+        }
+
+        switch(param_name[0])
+        {
+        case 'd':
+        case 'D':
+            if(snapdev::compare_upper_exact_switch_string<"DOMAIN">(param_name))
+            {
+                if(!has_value || param_value.empty())
+                {
+                    throw cookie_parse_exception("the Expires parameter must be a valid date.");
+                }
+                result.set_domain(param_value);
+            }
+            break;
+
+        case 'e':
+        case 'E':
+            if(snapdev::compare_upper_exact_switch_string<"EXPIRES">(param_name))
+            {
+                if(!has_value || param_value.empty())
+                {
+                    throw cookie_parse_exception("the Expires parameter must be a valid date.");
+                }
+                result.set_expire(param_value);
+            }
+            break;
+
+        case 'h':
+        case 'H':
+            if(snapdev::compare_upper_exact_switch_string<"HTTPONLY">(param_name))
+            {
+                if(has_value)
+                {
+                    throw cookie_parse_exception("the Secure flag cannot be given a value.");
+                }
+                result.set_http_only();
+            }
+            break;
+
+        case 'm':
+        case 'M':
+            if(snapdev::compare_upper_exact_switch_string<"MAX-AGE">(param_name))
+            {
+                if(!has_value || param_value.empty())
+                {
+                    throw cookie_parse_exception("the Max-Age parameter must be given a value.");
+                }
+                if(param_value[0] < '1' || param_value[0] > '9')
+                {
+                    throw cookie_parse_exception("the Max-Age parameter must start with a non-zero digit.");
+                }
+                std::int64_t seconds(0);
+                s = param_value.c_str();
+                while(*s != '\0')
+                {
+                    if(*s < '0' || *s > '9')
+                    {
+                    }
+                    seconds *= 10;
+                    seconds += *s - '0';
+                    if(seconds >= COOKIE_MAXIMUM_TIMEOUT * 2)
+                    {
+                        throw cookie_parse_exception("the Max-Age parameter cannot be more than 400 days.");
+                    }
+                }
+                result.set_expire_in(seconds);
+            }
+            break;
+
+        case 'p':
+        case 'P':
+            if(snapdev::compare_upper_exact_switch_string<"PATH">(param_name))
+            {
+                // Note: certain grammars allow for an empty string here, but
+                //       that is not really allowed
+                //
+                if(!has_value || param_value.empty() || param_value[0] != '/')
+                {
+                    throw cookie_parse_exception("the Expires parameter must be a valid date.");
+                }
+                result.set_path(param_value);
+            }
+            break;
+
+        case 's':
+        case 'S':
+            if(snapdev::compare_upper_exact_switch_string<"SECURE">(param_name))
+            {
+                if(has_value)
+                {
+                    throw cookie_parse_exception("the Secure flag cannot be given a value.");
+                }
+                result.set_secure();
+            }
+            else if(snapdev::compare_upper_exact_switch_string<"SAMESITE">(param_name))
+            {
+                if(!has_value || param_value.empty())
+                {
+                    throw cookie_parse_exception("the SameSite parameter must be one of Strict, Lax, or None.");
+                }
+                if(snapdev::compare_upper_exact_string<"STRICT">(param_value))
+                {
+                    result.set_same_site(http_same_site_t::HTTP_SAME_SITE_STRICT);
+                }
+                else if(snapdev::compare_upper_exact_string<"LAX">(param_value))
+                {
+                    result.set_same_site(http_same_site_t::HTTP_SAME_SITE_LAX);
+                }
+                else if(snapdev::compare_upper_exact_string<"NONE">(param_value))
+                {
+                    result.set_same_site(http_same_site_t::HTTP_SAME_SITE_NONE);
+                }
+                else
+                {
+                    // used given value not recognized, use the default instead
+                    //
+                    result.set_same_site(http_same_site_t::HTTP_SAME_SITE_DEFAULT);
+                }
+            }
+            break;
+
+        }
+    }
+
+    if(result.get_same_site() == http_same_site_t::HTTP_SAME_SITE_NONE
+    && !result.get_secure())
+    {
+        throw cookie_parse_exception("the SameSite=None parameter requires the Secure flag to be set.");
+    }
+
+    return result;
 }
 
 
@@ -669,28 +970,15 @@ std::string http_cookie::to_http_header() const
 {
     // Note: the name was already checked for invalid characters
     std::string result(g_name_edhttp_field_set_cookie);
-    result += ": ";
+    result += ':';
     result += f_name;
     result += '=';
+    result += urlencode(result, g_name_edhttp_accepted_characters_value);
 
-    for(auto const c : f_value)
-    {
-        if(c == 0x21
-        || (c >= 0x23 && c <= 0x2B)
-        || (c >= 0x2D && c <= 0x3A)
-        || (c >= 0x3C && c <= 0x5B)
-        || (c >= 0x5D && c <= 0x7E))
-        {
-            result += c;
-        }
-        else
-        {
-            // add the byte as %XX
-            result += '%';
-            result += snapdev::int_to_hex(c, true, 2);
-        }
-    }
-
+    // WARNING: although spaces are technically not required after each ";"
+    //          character; we include them because some user agents may not
+    //          function properly at all otherwise (yeah, I know...)
+    //
     switch(get_type())
     {
     case http_cookie_type_t::HTTP_COOKIE_TYPE_PERMANENT:
@@ -754,7 +1042,7 @@ std::string http_cookie::to_http_header() const
         result += "; ";
         result += g_name_edhttp_param_path;
         result += '=';
-        result += f_path;
+        result += urlencode(f_path, g_name_edhttp_accepted_characters_cookie);
     }
 
     if(f_secure)
@@ -767,26 +1055,6 @@ std::string http_cookie::to_http_header() const
     {
         result += "; ";
         result += g_name_edhttp_param_http_only;
-    }
-
-    if(!f_comment.empty())
-    {
-        // we need to escape all "bad" characters, not just quotes
-        result += "; ";
-        result += g_name_edhttp_param_comment;
-        result += "=\"";
-        safe_comment(result, f_comment);
-        result += '"';
-    }
-
-    if(!f_comment_uri.empty())
-    {
-        // we need to escape all "bad" characters, not just quotes
-        result += "; ";
-        result += g_name_edhttp_param_comment_url;
-        result += "=\"";
-        safe_comment(result, f_comment_uri);
-        result += '"';
     }
 
     return result;

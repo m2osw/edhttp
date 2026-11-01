@@ -14,6 +14,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+// self
+//
+#include    <edhttp/utils.h>
+
+
 // advgetopt
 //
 #include    <advgetopt/utils.h>
@@ -33,11 +38,6 @@ namespace edhttp
 // compression level is a percent (a number from 0 to 100)
 //
 typedef std::uint8_t                    level_t;
-
-
-// a buffer is an array of bytes
-//
-typedef std::vector<std::uint8_t>       buffer_t;
 
 
 // result from a compress() call, the compressed buffer and the name of

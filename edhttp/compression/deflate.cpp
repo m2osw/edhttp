@@ -37,11 +37,6 @@
 #include    <ctime>
 
 
-// C++
-//
-#include <algorithm>
-
-
 // C
 //
 #pragma GCC diagnostic push

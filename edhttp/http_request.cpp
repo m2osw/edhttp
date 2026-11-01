@@ -73,24 +73,25 @@ ed::mode_t http_request::get_mode() const
 }
 
 
-addr::addr_range::vector_t http_request::get_address_ranges() const
+/** \brief Transform the domain name to a set of addresses.
+ *
+ * The function transforms the URI domain name to a set of addresses using
+ * the corresponding DNS. The function sorts the addresses interleaving
+ * the IPv6 and IPv4 addresses, which is the way you are supposed to use
+ * them. First an IPv6 then an IPv4, repeat for all the IPs.
+ *
+ * The addresses remain in the order the DNS sent them to us outside of
+ * the fact that different types get interleaved as defined above.
+ * That means the Happy Eyeballs algorithm can be implemented as is
+ * from the list returned by this function.
+ *
+ * \return A vector of addresses.
+ *
+ * \sa uri::get_addresses()
+ */
+addr::addr::vector_t http_request::get_addresses() const
 {
-    addr::addr_parser p;
-
-    p.set_default_port(f_uri.get_port());
-
-    // TODO: if we are using HTTP/3, we should use UDP here
-    //
-    p.set_protocol(IPPROTO_TCP);
-
-    p.set_sort_order(addr::SORT_IPV6_FIRST | addr::SORT_NO_EMPTY);
-
-    p.set_allow(addr::allow_t::ALLOW_REQUIRED_ADDRESS, true);
-    p.set_allow(addr::allow_t::ALLOW_MULTI_ADDRESSES_COMMAS, true);
-    p.set_allow(addr::allow_t::ALLOW_MULTI_ADDRESSES_SPACES, true);
-
-    return p.parse(f_uri.full_domain());
-    //return f_address_ranges;
+    return f_uri.addresses();
 }
 
 
@@ -346,12 +347,12 @@ std::string http_request::get_request(bool keep_alive) const
         //
         std::string name(it->first);
         std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-        if((content_type.empty() || name != g_name_edhttp_field_content_type_lowercase)
-        && name != g_name_edhttp_field_content_length_lowercase
-        && name != g_name_edhttp_field_host_lowercase
-        && name != g_name_edhttp_field_connection_lowercase)
+        if((content_type.empty() || name != g_name_edhttp_field_content_type)
+        && name != g_name_edhttp_field_content_length
+        && name != g_name_edhttp_field_host
+        && name != g_name_edhttp_field_connection)
         {
-            if(name == g_name_edhttp_field_user_agent_lowercase)
+            if(name == g_name_edhttp_field_user_agent)
             {
                 found_user_agent = true;
             }
@@ -460,13 +461,6 @@ void http_request::set_mode(ed::mode_t mode)
  * You can also force the use of TLS encryption by changing the mode
  * from the default (ed::mode_t::MODE_PLAIN) to the secure one
  * (ed::mode_t::MODE_ALWAYS_SECURE).
- *
- * \todo
- * At this time, this immediately transforms the \p request_uri to
- * a list of IPs. However, if we want to reuse the same request over
- * and over again, we probably want to recheck the set of addresses
- * which I think would mean saving the `uri` object and get the
- * range of addresses at the point we attempt connections.
  *
  * \param[in] request_uri  The URI to save in this HTTP request.
  *
@@ -641,6 +635,51 @@ void http_request::set_body(std::string const & body)
     f_body = body;
 
     f_has_body = true;
+}
+
+
+/** \brief Add a response callback.
+ *
+ * Instead of deriving and reimplementing the process_response() function,
+ * you can instead use this function to add a response callback. This
+ * function gets called any time you receive a response.
+ *
+ * Any number of response callbacks can be added.
+ *
+ * If you keep note of the callback identifier (returned by the function,)
+ * then you can remove that callback later.
+ *
+ * \param[in] f  The function to add.
+ *
+ * \return An identifier which can be used to remove the callback later.
+ */
+http_response::callback_manager_t::callback_id_t http_request::add_response_callback(http_response::callback_t f)
+{
+    return f_response_callbacks.add_callback(f);
+}
+
+
+/** \brief Remove a response callback.
+ *
+ * You may add any number of response callback using the add_response_callback()
+ * function. That function returns an identifier that can be used to later
+ * remove that callback.
+ *
+ * \param[in] id  The identifier of the callback to remove.
+ *
+ * \return true if the callback was found and removed.
+ *
+ * \sa add_response_callback()
+ */
+bool http_request::remove_response_callback(http_response::callback_manager_t::callback_id_t id)
+{
+    return f_response_callbacks.remove_callback(id);
+}
+
+
+bool http_request::process_response(http_response::pointer_t response)
+{
+    return f_response_callbacks.call(response);
 }
 
 

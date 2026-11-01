@@ -30,16 +30,12 @@
 
 // snapdev
 //
+#include    <snapdev/compare_switch_string.h>
 #include    <snapdev/hexadecimal_string.h>
 #include    <snapdev/join_strings.h>
-#include    <snapdev/not_used.h>
+#include    <snapdev/not_reached.h>
 #include    <snapdev/safe_assert.h>
 #include    <snapdev/tokenize_string.h>
-
-
-// libaddr
-//
-#include    <libaddr/addr_parser.h>
 
 
 // libtld
@@ -610,7 +606,7 @@ bool uri::set_uri(
     // and at this point we do not have that information...
     //
     f_options.clear();
-    f_address_ranges.clear();
+    f_addresses.clear();
 
     f_query_strings = query_strings;
     f_anchor = uri_anchor;
@@ -1181,6 +1177,30 @@ std::string const & uri::scheme() const
 }
 
 
+/** \brief Check whether the scheme implies a secure connection.
+ *
+ * The name of the scheme is checked to determine whether it is considered
+ * secure or not. For example, HTTPS returns true, whereas, HTTP returns
+ * false.
+ *
+ * The default is to return false, so most schemes are considered unsecure
+ * by default which may not be the case in real life.
+ *
+ * \note
+ * The port may also be checked with is_port_secure(). Note that if you
+ * set the port to 443 but the scheme to HTTP, then one function returns
+ * true and the other false.
+ *
+ * \return true if the named scheme is considered secure.
+ *
+ * \sa is_port_secure()
+ */
+bool uri::is_scheme_secure() const
+{
+    return edhttp::is_scheme_secure(f_scheme);
+}
+
+
 /** \brief Process a domain name and break it up.
  *
  * This function processes a domain name and breaks it up in
@@ -1210,8 +1230,8 @@ bool uri::process_domain(
     // (note that the URI is expected to be encoded so the UTF-8
     // encoding is the same as ASCII)
     //
-    struct tld_info info;
-    char const *fd(full_domain_name.c_str());
+    tld_info info;
+    char const * fd(full_domain_name.c_str());
     tld_result r(::tld(fd, &info));
     if(r != TLD_RESULT_SUCCESS)
     {
@@ -1334,7 +1354,7 @@ void uri::set_domain(std::string const & full_domain_name)
     f_top_level_domain = tld;
     f_sub_domains = sub_domain_names;
 
-    f_address_ranges.clear();
+    f_addresses.clear();
 }
 
 
@@ -1468,21 +1488,47 @@ advgetopt::string_list_t const & uri::sub_domains_list() const
  * The domain can later be retrieved using the addr::get_hostname()
  * function.
  *
- * \return A reference to a vector of addr::addr_range objects.
+ * \warning
+ * The returned reference is lost if the URI is modified with a call to
+ * set_uri() or similar. Make a copy if the URI may be modified before
+ * you are done with the vector of addresses.
+ *
+ * \note
+ * At the moment, the addresses are given a hard coded TTL of 5 min.
+ * It is expected that the Ubuntu system we use has an address resolver
+ * caching IPs for as long as the corresponding DNS says it can be cached
+ * for. So in effect our TTL just ensures fast retrieval for 5 min.
+ * which should be more than sufficient in most cases.
+ *
+ * \param[in] order  The set of flags used by the libaddr parser to sort
+ * the results. By default, we sort the addresses with an IPv6 first,
+ * then an IPv4, the next IPv6, etc. removing empty entries. This is
+ * useful when implementing a Happy Eyeballs algorithm since the IPs will
+ * be in the correct order in the returned vector.
+ *
+ * \return A reference to a vector of addr::addr objects.
  */
-addr::addr_range::vector_t const & uri::address_ranges()
+addr::addr::vector_t const & uri::addresses(addr::sort_t order) const
 {
-    if(f_address_ranges.empty())
+    // invalidate the addresses if too old
+    //
+    if(f_valid_addresses < snapdev::now())
+    {
+        f_addresses.clear();
+    }
+    if(f_addresses.empty())
     {
         addr::addr_parser p;
         p.set_default_port(get_port());
         p.set_protocol(IPPROTO_TCP);
-        p.set_sort_order(addr::SORT_IPV6_FIRST | addr::SORT_NO_EMPTY);
+        p.set_sort_order(order);
         p.set_allow(addr::allow_t::ALLOW_REQUIRED_ADDRESS, true);
-        f_address_ranges = p.parse(full_domain());
+        addr::addr_range::vector_t const ranges(p.parse(full_domain()));
+        f_addresses = addr::to_addresses(ranges);
+        f_valid_addresses = snapdev::now() + snapdev::timespec_ex(5 * 60.0); // time out in 5 min.
     }
 
-    return f_address_ranges;
+    return f_addresses;
 }
 
 
@@ -1514,7 +1560,7 @@ void uri::set_port(std::string const & port)
             + "\" is an invalid port number");
     }
     f_port = p;
-    f_address_ranges.clear();
+    f_addresses.clear();
 }
 
 
@@ -1570,6 +1616,25 @@ int uri::get_port() const
 std::string uri::get_str_port() const
 {
     return std::to_string(f_port);
+}
+
+
+/** \brief Check whether the port is considered secure.
+ *
+ * This function checks the network port and determine whether it is
+ * considered secure. For example, port 443 is considered secure when
+ * port 80 is not.
+ *
+ * \note
+ * The is_scheme_secure() can also be called to check the scheme. Since
+ * the port and scheme may not be \em connected, the results of both
+ * functions can be different.
+ *
+ * \return true if the URI port is considered to be used for secure connections.
+ */
+bool uri::is_port_secure() const
+{
+    return edhttp::is_port_secure(f_port);
 }
 
 
@@ -2427,14 +2492,15 @@ std::string urlencode(std::string const & in, char const * accepted)
         || (*u >= 'a' && *u <= 'z')
         || (*u >= '0' && *u <= '9')
         || *u == '.' || *u == '-' || *u == '_'
-        || strchr(accepted, *u) != nullptr)
+        || strchr(accepted, static_cast<unsigned char>(*u)) != nullptr)
         {
             encoded += *u;
         }
         else
         {
-            // note that we are encoding space as %20 and not +
+            // note that we are encoding spaces as %20 and not +
             // because the + should not be supported anymore
+            //
             encoded += '%';
             encoded += snapdev::int_to_hex(*u, true, 2);
         }
@@ -2673,6 +2739,107 @@ int scheme_to_port(std::string const & scheme)
         }
     }
     return ntohs(s->s_port);
+}
+
+
+bool is_scheme_secure(std::string const & uri_scheme)
+{
+    if(!uri_scheme.empty())
+    {
+        switch(uri_scheme[0])
+        {
+        case 'a':
+        case 'A':
+            return snapdev::compare_upper_exact_switch_string<"AMQPS">(uri_scheme);
+
+        case 'd':
+        case 'D':
+            return snapdev::compare_upper_exact_switch_string<"DOMAIN-S">(uri_scheme);
+
+        case 'f':
+        case 'F':
+            return snapdev::compare_upper_exact_switch_string<"FTPS">(uri_scheme)
+                || snapdev::compare_upper_exact_switch_string<"FTPS-DATA">(uri_scheme);
+
+        case 'h':
+        case 'H':
+            return snapdev::compare_upper_exact_switch_string<"HTTPS">(uri_scheme);
+
+        case 'i':
+        case 'I':
+            return snapdev::compare_upper_exact_switch_string<"IMAPS">(uri_scheme)
+                || snapdev::compare_upper_exact_switch_string<"IRCS-U">(uri_scheme);
+
+        case 'l':
+        case 'L':
+            return snapdev::compare_upper_exact_switch_string<"LDAPS">(uri_scheme);
+
+        case 'n':
+        case 'N':
+            return snapdev::compare_upper_exact_switch_string<"NNTPS">(uri_scheme);
+
+        case 'p':
+        case 'P':
+            return snapdev::compare_upper_exact_switch_string<"POP3S">(uri_scheme);
+
+        case 'r':
+        case 'R':
+            return snapdev::compare_upper_exact_switch_string<"RSYNC">(uri_scheme);
+
+        case 's':
+        case 'S':
+            return snapdev::compare_upper_exact_switch_string<"SMTPS">(uri_scheme)
+                || snapdev::compare_upper_exact_switch_string<"SNNTP">(uri_scheme)
+                || snapdev::compare_upper_exact_switch_string<"SSMTP">(uri_scheme)
+                || snapdev::compare_upper_exact_switch_string<"SUBMISSIONS">(uri_scheme)
+                || snapdev::compare_upper_exact_switch_string<"SUUCP">(uri_scheme)
+                || snapdev::compare_upper_exact_switch_string<"SYSLOG-TLS">(uri_scheme);
+
+        case 't':
+        case 'T':
+            return snapdev::compare_upper_exact_switch_string<"TELNETS">(uri_scheme);
+
+        case 'u':
+        case 'U':
+            return snapdev::compare_upper_exact_switch_string<"URD">(uri_scheme);
+
+        case 'w':
+        case 'W':
+            return snapdev::compare_upper_exact_switch_string<"WSS">(uri_scheme);
+
+        }
+    }
+
+    return false;
+}
+
+
+bool is_port_secure(int port)
+{
+    switch(port)
+    {
+    case 443:   // https
+    case 465:   // submissions ssmtp smtps urd
+    case 563:   // nntps snntp
+    case 636:   // ldaps
+    case 853:   // domain-s
+    case 873:   // rsync
+    case 989:   // ftps-data
+    case 990:   // ftps
+    case 992:   // telnets
+    case 993:   // imaps
+    case 995:   // pop3s
+    case 4031:  // suucp
+    case 5671:  // amqps
+    case 6514:  // syslog-tls
+    case 6697:  // ircs-u
+        return true;
+
+    default:
+        return false;
+
+    }
+    snapdev::NOT_REACHED();
 }
 
 

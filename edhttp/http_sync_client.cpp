@@ -124,7 +124,7 @@ http_response::pointer_t http_sync_client::send_request(http_request const & req
     {
         // TODO: allow user to specify the security instead of using the port
         //
-        addr::addr_range::vector_t address_ranges(request.get_address_ranges());
+        addr::addr::vector_t const & address_ranges(request.get_addresses());
         if(address_ranges.empty())
         {
             SNAP_LOG_ERROR
@@ -140,8 +140,8 @@ http_response::pointer_t http_sync_client::send_request(http_request const & req
             try
             {
                 f_connection = std::make_shared<ed::tcp_bio_client>(
-                        r.get_from(),
-                        r.get_from().get_port() == 443
+                        r,
+                        r.get_port() == 443
                             ? ed::mode_t::MODE_ALWAYS_SECURE
                             : request.get_mode());
 
@@ -196,102 +196,123 @@ void http_sync_client::read_response(http_response::pointer_t response)
 
         void process()
         {
-            read_protocol();
+            read_status_line();
             read_header();
             read_body();
         }
 
         int read_line(std::string& line)
         {
-            int r(f_connection->read_line(line));
-            if(r >= 1)
+            int const r(f_connection->read_line(line));
+            if(r < 1
+            || *line.rbegin() != '\r')
             {
-                if(*line.rbegin() == '\r')
-                {
-                    // remove the '\r' if present (should be)
-                    line.erase(line.end() - 1);
-                    --r;
-                }
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                msg << "HTTP header line with missing '\\r' (carriage return) character missing.";
+                throw client_io_error(msg.str());
             }
-            return r;
+
+            // remove the '\r'
+            //
+            line.pop_back();
+
+            if(line.length() > 8 * 1024)
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                msg << "HTTP header line too long.";
+                throw client_io_error(msg.str());
+            }
+
+            return r - 1;
         }
 
-        void read_protocol()
+        void read_status_line()
         {
-            // first check that the protocol is HTTP and get the answer code
+            // first check that the status line is HTTP and get the answer code
+            //
 SNAP_LOG_TRACE
-<< "*** read the protocol line"
+<< "*** read the status line"
 << SNAP_LOG_SEND;
-            std::string protocol;
-            int const r(read_line(protocol));
+            std::string status_line;
+            int const r(read_line(status_line));
             if(r < 0)
             {
-                SNAP_LOG_ERROR
-                    << "read I/O error while reading HTTP protocol in response."
-                    << SNAP_LOG_SEND;
-                throw client_io_error("read I/O error while reading HTTP protocol in response.");
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                msg << "read I/O error while reading HTTP status line in response.";
+                throw client_io_error(msg.str());
             }
-            f_response->append_original_header(protocol);
+            if(status_line.size() < 13)
+            {
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                msg << "invalid HTTP status line in response, needed at least 13 characters.";
+                throw client_io_error(msg.str());
+            }
 
 SNAP_LOG_TRACE
-<< "*** got protocol: "
-<< protocol
+<< "*** got status line: "
+<< status_line
 << SNAP_LOG_SEND;
-            char const *p(protocol.c_str());
-            if(strncmp(p, "HTTP/1.0 ", 9) == 0)
+            f_response->parse_status_line(status_line);
+
+#if 0
+            char const * p(status_line.c_str());
+            if(p[0] != 'H'
+            || p[1] != 'T'
+            || p[2] != 'T'
+            || p[3] != 'P'
+            || p[4] != '/'
+            || p[5] != '1'
+            || p[6] != '.'
+            || (p[7] != '0' && p[7] != '1')
+            || p[8] != ' '
+            || p[9] < '1' || p[9] > '5'
+            || p[10] < '0' || p[10] > '9'
+            || p[11] < '0' || p[11] > '9'
+            || p[12] != ' ')
             {
-                f_response->set_protocol(http_protocol_t::HTTP_1_0);
-                p += 9; // skip protocol
+                snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                msg << "unknown protocol or invalid HTTP code in \""
+                    << status_line
+                    << "\", we only accept HTTP/1.0 and HTTP/1.1 at this time. Code must be between 100 and 599.";
+                throw client_io_error(msg.str());
             }
-            else if(strncmp(p, "HTTP/1.1 ", 9) == 0)
+            for(std::size_t idx(13); idx < status_line.length(); ++idx)
             {
-                f_response->set_protocol(http_protocol_t::HTTP_1_1);
-                p += 9; // skip protocol
-            }
-            else
-            {
-                // HTTP/2 is in the making, but it does not seem to
-                // be officially out yet...
-                //
-                SNAP_LOG_ERROR
-                    << "unknown protocol \""
-                    << protocol
-                    << "\", we only accept HTTP/1.0 and HTTP/1.1 at this time."
-                    << SNAP_LOG_SEND;
-                throw client_io_error("read I/O error while reading HTTP protocol in response.");
+                char const c(status_line[idx]);
+                if((c < ' ' && c != '\t')
+                || c >= 0x7F) // we refuse obs-text characters
+                {
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                    msg << "found invalid character (\\x"
+                        << std::hex << std::setw(2) << c
+                        << ") in reason phrase.";
+                    throw client_io_error(msg.str());
+                }
             }
 
-            // skip any extra spaces (should be none)
-            //
-            for(; isspace(*p); ++p);
-            int count(0);
-            int response_code(0);
-            for(; *p >= '0' && *p <= '9'; ++p, ++count)
-            {
-                // no overflow check necessary, we expect from 1 to 3 digits
-                response_code = response_code * 10 + (*p - '0');
-            }
-            if(count != 3)
-            {
-                SNAP_LOG_ERROR
-                    << "unknown response code \""
-                    << protocol
-                    << "\", all response code are expected to be three digits (i.e. 200, 401, or 500)."
-                    << SNAP_LOG_SEND;
-                throw client_io_error("unknown response code, expected exactly three digits.");
-            }
-            f_response->set_response_code(response_code);
+            f_response->append_original_header(status_line);
+
+            f_response->set_protocol(
+                    p[7] == '0'
+                        ? http_protocol_t::HTTP_PROTOCOL_1_0
+                        : http_protocol_t::HTTP_PROTOCOL_1_1);
+
+            f_response->set_response_code(
+                  (p[9] - '0') * 100
+                + (p[10] - '0') * 10
+                + p[11] - '0');
 SNAP_LOG_TRACE
 << "***   +---> code: "
-<< response_code
+<< f_response->get_response_code()
 << SNAP_LOG_SEND;
-            // skip any spaces after the code
-            for(; isspace(*p); ++p);
-            f_response->set_http_message(p);
+
+            f_response->set_reason_phrase(p + 13);
 SNAP_LOG_TRACE
-<< "***   +---> msg: "
-<< p
+<< "***   +---> msg: ["
+<< p + 13
+<< "]"
 << SNAP_LOG_SEND;
+#endif
         }
 
         void read_header()
@@ -302,57 +323,65 @@ SNAP_LOG_TRACE
                 int const r(read_line(field));
                 if(r < 0)
                 {
-                    SNAP_LOG_ERROR
-                        << "read I/O error while reading header."
-                        << SNAP_LOG_SEND;
-                    throw client_io_error("read I/O error while reading header.");
+                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+                    msg << "read I/O error while reading header.";
+                    throw client_io_error(msg.str());
                 }
                 if(r == 0)
                 {
                     // found the empty line after the header
                     // we are done reading the header then
+                    //
                     break;
                 }
-                f_response->append_original_header(field);
+                f_response->parse_header(field);
 
-SNAP_LOG_TRACE
-<< "got a header field: "
-<< field
-<< SNAP_LOG_SEND;
-                char const * f(field.c_str());
-                char const * e(f);
-                for(; *e != ':' && *e != '\0'; ++e);
-                if(*e != ':')
-                {
-                    // TODO: add support for long fields that continue on
-                    //       the following line
-                    SNAP_LOG_ERROR
-                        << "invalid header, field definition does not include a colon."
-                        << SNAP_LOG_SEND;
-                    throw client_io_error("invalid header, field definition does not include a colon.");
-                }
-                // get the name and make it lowercase so we can search for
-                // it with ease (HTTP field names are case insensitive)
-                std::string name(f, e - f);
-                std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-
-                // skip the ':' and then left trimming of spaces
-                for(++e; isspace(*e); ++e);
-                char const * end(f + field.length());
-                for(; end > e && isspace(end[-1]); --end);
-                std::string const value(e, end - e);
-
-                f_response->set_header(name, value);
+//                f_response->append_original_header(field);
+//
+//SNAP_LOG_TRACE
+//<< "got a header field: "
+//<< field
+//<< SNAP_LOG_SEND;
+//                char const * f(field.c_str());
+//                char const * e(f);
+//                for(; *e != ':' && *e != '\0'; ++e);
+//                if(*e != ':')
+//                {
+//                    // TODO: add support for long fields that continue on
+//                    //       the following line
+//                    //
+//                    snaplogger::message msg(snaplogger::severity_t::SEVERITY_ERROR);
+//                    SNAP_LOG_ERROR
+//                        << "invalid header, field definition does not include a colon."
+//                        << SNAP_LOG_SEND;
+//                    throw client_io_error("invalid header, field definition does not include a colon.");
+//                }
+//
+//                // get the name and make it lowercase so we can search for
+//                // it with ease (HTTP field names are case insensitive)
+//                //
+//                std::string name(f, e - f);
+//                std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+//
+//                // skip the ':' and then trimming of spaces
+//                //
+//                for(++e; isspace(*e); ++e);
+//                char const * end(f + field.length());
+//                for(; end > e && isspace(end[-1]); --end);
+//                std::string const value(e, end - e);
+//
+//                f_response->add_header(name, value);
             }
         }
 
         void read_body()
         {
-            if(f_response->has_header(g_name_edhttp_field_content_length_lowercase))
+            if(f_response->has_header(g_name_edhttp_field_content_length))
             {
                 // server sent a content-length parameter, make use of
                 // it and do one "large" read
-                std::string const length(f_response->get_header(g_name_edhttp_field_content_length_lowercase));
+                //
+                std::string const length(f_response->get_header(g_name_edhttp_field_content_length));
                 int64_t content_length(0);
                 for(char const * l(length.c_str()); *l != '\0'; ++l)
                 {

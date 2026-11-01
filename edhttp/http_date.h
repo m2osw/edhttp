@@ -47,4 +47,3 @@ int             last_day_of_month(int month, int year);
 
 } // namespace edhttp
 // vim: ts=4 sw=4 et
-
