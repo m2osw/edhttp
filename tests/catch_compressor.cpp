@@ -981,7 +981,7 @@ CATCH_TEST_CASE("compressor", "[compression]")
                 edhttp::compressor * c(edhttp::get_compressor(compressed.second));
                 CATCH_REQUIRE(c != nullptr);
                 CATCH_REQUIRE(c->get_name() == compressed.second);
-SNAP_LOG_WARNING << "--- c = " << c->get_name() << SNAP_LOG_SEND;
+//SNAP_LOG_WARNING << "--- c = " << c->get_name() << SNAP_LOG_SEND;
                 if(compressed.second != "deflate")
                 {
                     CATCH_REQUIRE(c->compatible(compressed.first));

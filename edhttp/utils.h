@@ -37,9 +37,10 @@ namespace edhttp
 
 typedef std::vector<std::uint8_t>       buffer_t;
 
+void                    accepted_protocol(std::string const & domain, magpie::duration_t ttl);
+bool                    accepted_protocol(std::string const & domain);
 
-void                    accept_h3(std::string const & domain, magpie::duration_t ttl);
-bool                    accept_h3(std::string const & domain);
+bool                    decode_percents(std::string const & in, std::string & out);
 
 
 

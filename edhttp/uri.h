@@ -49,6 +49,9 @@ namespace edhttp
 
 
 
+constexpr std::size_t const         MAXIMUM_SCHEME_LENGTH = 64;
+
+
 // Helper class to handle URIs
 // http://tools.ietf.org/html/rfc3986
 //
@@ -70,9 +73,7 @@ public:
                                     , bool accept_path = false
                                     , bool accept_ip = false);
     std::string const &         get_original_uri() const;
-    std::string                 get_uri(
-                                      bool use_hash_bang = false
-                                    , std::string const & redact = std::string()) const;
+    std::string                 get_uri(std::string const & redact = std::string()) const;
     std::string                 get_website_uri(
                                       bool include_port = false
                                     , bool include_user = false) const;
@@ -127,7 +128,6 @@ public:
     std::string                 path_segment(int part) const;
     advgetopt::string_list_t const &
                                 path_list() const;
-    std::string                 hash_bang_path(bool encoded = true) const;
 
     // option handling
     //
@@ -152,7 +152,7 @@ public:
     std::string                 query_option(int part, std::string & name) const;
     uri_options_t const &       query_string_list() const;
 
-    // anchor handling (note: "#!" is not considered an anchor)
+    // anchor handling
     //
     void                        set_anchor(std::string const & uri_anchor);
     std::string const &         anchor() const;
@@ -186,7 +186,6 @@ private:
     std::string                 f_top_level_domain = std::string();
     advgetopt::string_list_t    f_sub_domains = advgetopt::string_list_t();
     advgetopt::string_list_t    f_path = advgetopt::string_list_t();
-    advgetopt::string_list_t    f_hash_bang_path = advgetopt::string_list_t();
     uri_options_t               f_options = uri_options_t();
     uri_options_t               f_query_strings = uri_options_t();
     std::string                 f_anchor = std::string();

@@ -53,6 +53,8 @@ public:
 
     bool                            get_keep_alive() const;
     void                            set_keep_alive(bool keep_alive);
+    allowed_http_protocol_t         get_allowed_http_protocols() const;
+    void                            set_allowed_http_protocols(allowed_http_protocol_t allowed);
     delay_t                         get_http_connection_timeout() const;
     void                            set_http_connection_timeout(delay_t timeout);
     snapdev::timespec_ex const &    get_http_idle_timeout() const;
@@ -67,12 +69,16 @@ public:
     http_udp_connection::pointer_t  get_udp_ipv4_connection();
     http_udp_connection::pointer_t  get_udp_ipv6_connection();
 
+    void                            process_connected(ed::connection::pointer_t c);
+    void                            process_connection_failed(ed::connection::pointer_t c);
     void                            send_request(http_request::pointer_t request);
+    bool                            process_response(http_response::pointer_t response);
 
 private:
     http_client_connection *        f_parent = nullptr;
     ed::communicator::pointer_t     f_communicator = ed::communicator::pointer_t();
     bool                            f_keep_alive = true;
+    allowed_http_protocol_t         f_allowed_http_protocols = ALLOWED_HTTP_ALL;
     connection_count_t              f_maximum_connection_attempts = MAXIMUM_CONNECTION_ATTEMPTS_DEFAULT;
     std::size_t                     f_maximum_header_size = MAXIMUM_HEADER_SIZE;
     delay_t                         f_http_connection_timeout = DEFAULT_CONNECTION_TIMEOUT;

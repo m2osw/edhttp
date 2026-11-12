@@ -30,10 +30,12 @@ if(SnapCatch2_FOUND)
 
         catch_archiver.cpp
         catch_compressor.cpp
+        catch_parametrized_value_list.cpp
+        catch_token.cpp
         catch_uri.cpp
+        catch_utils.cpp
         catch_validator.cpp
         catch_version.cpp
-        catch_weighted_http_strings.cpp
     )
 
     target_include_directories(${PROJECT_NAME}

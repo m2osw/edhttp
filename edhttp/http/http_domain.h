@@ -20,6 +20,7 @@
 // self
 //
 #include    <edhttp/http_request.h>
+#include    <edhttp/http_response.h>
 #include    <edhttp/http_client_connection.h>
 
 
@@ -40,6 +41,14 @@ namespace detail
 class http_client_connection_impl;
 
 
+enum class http_domain_status_t
+{
+    HTTP_DOMAIN_STATUS_CONNECTING,
+    HTTP_DOMAIN_STATUS_CONNECTED,
+    HTTP_DOMAIN_STATUS_DISCONNECTED,
+};
+
+
 class http_domain
     : public ed::timer
 {
@@ -51,19 +60,26 @@ public:
                                           http_client_connection_impl * parent
                                         , std::string const & host
                                         , addr::addr::vector_t const & addresses
-                                        , ed::mode_t mode);
+                                        , ed::mode_t mode
+                                        , allowed_http_protocol_t allowed);
                                     http_domain(http_domain const &) = delete;
     virtual                         ~http_domain() override;
 
     http_domain &                   operator = (http_domain const &) = delete;
 
-    void                            send_request(http_request::pointer_t request);
+    http_domain_status_t            get_status() const;
+    std::string const &             get_host() const;
+    bool                            send_request(http_request::pointer_t request);
+    bool                            process_next_request();
     std::size_t                     get_maximum_header_size() const;
-    void                            process_connected();
+    void                            process_connected(ed::connection::pointer_t c);
+    void                            process_connection_failed(ed::connection::pointer_t c);
+    bool                            process_response(http_response::pointer_t response);
 
     // connection implementation
     //
     virtual void                    process_timeout() override;
+    virtual void                    process_error() override;
     virtual void                    process_hup() override;
 
 private:
@@ -74,16 +90,19 @@ private:
         addr::addr                      f_address = addr::addr();
         ed::connection::pointer_t       f_connection = ed::connection::pointer_t();
         bool                            f_http3 = false;
+        bool                            f_allow_http2 = false;
     };
 
     void                            close_attempts();
     void                            close();
     void                            start_attempt();
+    bool                            apply_send_request(http_request::pointer_t request);
 
     http_client_connection_impl *   f_parent = nullptr;
     ed::communicator::pointer_t     f_communicator = ed::communicator::pointer_t();
     std::string                     f_host = std::string();
     ed::mode_t                      f_mode = ed::mode_t::MODE_PLAIN;
+    http_request::list_t            f_request_list = http_request::list_t();
     attempt_t::vector_t             f_attempts = attempt_t::vector_t();
     connection_count_t              f_current_attempt = 0;
     ed::connection::pointer_t       f_child_connection = ed::connection::pointer_t();

@@ -969,6 +969,7 @@ http_cookie http_cookie::from_http_header(std::string const & header)
 std::string http_cookie::to_http_header() const
 {
     // Note: the name was already checked for invalid characters
+    //
     std::string result(g_name_edhttp_field_set_cookie);
     result += ':';
     result += f_name;

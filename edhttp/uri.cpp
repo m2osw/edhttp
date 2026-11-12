@@ -38,6 +38,11 @@
 #include    <snapdev/tokenize_string.h>
 
 
+// libutf8
+//
+#include    <libutf8/libutf8.h>
+
+
 // libtld
 //
 #include    <libtld/tld.h>
@@ -188,7 +193,13 @@ bool uri::set_uri(
         f_last_error_message = "scheme not followed by \"://\".";
         return false;
     }
+
     std::string const uri_scheme(s, u - s);
+    if(uri_scheme.length() > MAXIMUM_SCHEME_LENGTH)
+    {
+        f_last_error_message = "scheme name \"" + uri_scheme + "\" is too long.";
+        return false;
+    }
 
     // skip the ://
     //
@@ -212,8 +223,51 @@ bool uri::set_uri(
         char const * at(nullptr);
         for(s = u; *u != '\0' && *u != '/'; ++u)
         {
-            if(*u == ':')
+            switch(*u)
             {
+            case '[':
+                // this should be an IPv6 address, it includes ':' characters
+                // so we have to skip it at once
+                //
+                for(++u; *u != '\0' && *u != ']'; ++u)
+                {
+                    switch(*u)
+                    {
+                    case '.':
+                    case '0':
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                    case '7':
+                    case '8':
+                    case '9':
+                    case ':':
+                    case 'A':
+                    case 'B':
+                    case 'C':
+                    case 'D':
+                    case 'E':
+                    case 'F':
+                    case 'a':
+                    case 'b':
+                    case 'c':
+                    case 'd':
+                    case 'e':
+                    case 'f':
+                        break;
+
+                    default:
+                        f_last_error_message = "an IPv6 must only include colons and hexadecimal digits.";
+                        return false;
+
+                    }
+                }
+                break;
+
+            case ':':
                 if(colon1 == nullptr)
                 {
                     if(at == nullptr)
@@ -247,9 +301,9 @@ bool uri::set_uri(
                         return false;
                     }
                 }
-            }
-            if(*u == '@')
-            {
+                break;
+
+            case '@':
                 if(at != nullptr)
                 {
                     // we cannot have more than one @ character that wasn't escaped
@@ -258,6 +312,8 @@ bool uri::set_uri(
                     return false;
                 }
                 at = u;
+                break;
+
             }
         }
         // without an at (@) colon1 indicates a port
@@ -288,33 +344,36 @@ bool uri::set_uri(
         {
             full_domain_name.insert(0, s, colon2 - s);
             char const * p(colon2 + 1);
-            if(p == u)
+
+            // empty port entries are viewed as "use default port"
+            //
+            if(p != u)
             {
-                // empty port entries are considered invalid
-                //
-                f_last_error_message = "port cannot be an empty string.";
-                return false;
-            }
-            port = 0;  // Reset port.
-            for(; p < u; ++p)
-            {
-                char const d(*p);
-                if(d < '0' || d > '9')
+                int parsed_port(0);
+                for(; p < u; ++p)
                 {
-                    // ports only accept digits
-                    //
-                    f_last_error_message = "port must be a valid decimal number ('";
-                    f_last_error_message += std::string(p, u);
-                    f_last_error_message += "' unexpected).";
-                    return false;
+                    char const d(*p);
+                    if(d < '0' || d > '9')
+                    {
+                        // ports only accept digits
+                        //
+                        f_last_error_message = "port must be a valid decimal number ('";
+                        f_last_error_message += std::string(p, u);
+                        f_last_error_message += "' was unexpected).";
+                        return false;
+                    }
+                    parsed_port = parsed_port * 10 + d - '0';
+                    if(parsed_port > 65535)
+                    {
+                        // port overflow
+                        //
+                        f_last_error_message = "port must be between 0 and 65536.";
+                        return false;
+                    }
                 }
-                port = port * 10 + d - '0';
-                if(port > 65535)
+                if(parsed_port != 0)
                 {
-                    // port overflow
-                    //
-                    f_last_error_message = "port must be between 0 and 65536.";
-                    return false;
+                    port = parsed_port;
                 }
             }
         }
@@ -518,51 +577,11 @@ bool uri::set_uri(
     // (note that browsers do not send us the anchor data, however, URIs
     // defined on the server side can very well include such.)
     //
-    advgetopt::string_list_t hash_bang_uri_path;
     std::string uri_anchor;
     if(*u == '#')
     {
         ++u;
-
-        // we need to decode the string so we add the whole string here
-        //
-        std::string p(u);
-        p = urldecode(p);
-        if(!p.empty() && p[0] == '!')
-        {
-            // what do we do here?!
-            //
-            // it seems to me that we should not get those here, but that
-            // could be from someone who wrote the URL in their document.
-            //
-            u = p.c_str() + 1;
-            for(s = u; *u != '\0'; ++u)
-            {
-                if(*u == '/')
-                {
-                    // decode right here since we have separate strings
-                    //
-                    if(s != u)
-                    {
-                        hash_bang_uri_path.push_back(urldecode(std::string(s, u - s)));
-                    }
-
-                    // skip the '/'
-                    //
-                    s = u + 1;
-                }
-            }
-            if(s != u)
-            {
-                // last path that doesn't end with '/'
-                //
-                hash_bang_uri_path.push_back(urldecode(std::string(s, u - s)));
-            }
-        }
-        else
-        {
-            uri_anchor = p;
-        }
+        uri_anchor = urldecode(u);
     }
 
     // the path may include some ".." which we want to eliminate
@@ -574,13 +593,6 @@ bool uri::set_uri(
     if(!clean_path(uri_path))
     {
         return false;
-    }
-    if(!clean_path(hash_bang_uri_path))
-    {
-        // we don't care much for valid hash URIs, so if invalid, we
-        // still accept the URI as is
-        //
-        hash_bang_uri_path.clear();
     }
 
     // totally unchanged URI, but only if it is considered valid
@@ -600,7 +612,6 @@ bool uri::set_uri(
     f_top_level_domain = tld;
     f_sub_domains = sub_domain_names;
     f_path = uri_path;
-    f_hash_bang_path = hash_bang_uri_path;
 
     // options come from parsing the sub-domains, query strings and paths
     // and at this point we do not have that information...
@@ -702,21 +713,20 @@ std::string const & uri::get_original_uri() const
  * \note
  * The returned URI is already encoded as required by HTTP and such.
  *
- * \param[in] use_hash_bang  When this flag is set to true the URI is returned
- * as a hash bang (i.e. domain/path becomes domain/#!path).
  * \param[in] redact  If this string is not empty and the URI includes a
  * password, this string is used instead of the password. This is often set
  * to something like "XXX" or similar.
  *
  * \return The URI represented by this URI object.
  */
-std::string uri::get_uri(bool use_hash_bang, std::string const & redact) const
+std::string uri::get_uri(std::string const & redact) const
 {
     std::string result(f_scheme);
 
     result += "://";
 
     // username/password if defined
+    //
     if(!f_username.empty())
     {
         result += urlencode(f_username);
@@ -729,10 +739,12 @@ std::string uri::get_uri(bool use_hash_bang, std::string const & redact) const
     }
 
     // full domain
+    //
     // domains should rarely require encoding for special characters, however,
     // it often is for international domains that make use of UTF-8 characters
     // outside of the standard ASCII letters and those definitively require
     // URL encoding to work right.
+    //
     result += urlencode(full_domain());
     if(f_port != scheme_to_port(f_scheme))
     {
@@ -763,6 +775,7 @@ std::string uri::get_uri(bool use_hash_bang, std::string const & redact) const
     }
 
     // query string
+    //
     std::string const q(query_string());
     if(!q.empty())
     {
@@ -771,22 +784,11 @@ std::string uri::get_uri(bool use_hash_bang, std::string const & redact) const
     }
 
     // anchor
+    //
     if(!f_anchor.empty())
     {
-        if(use_hash_bang)
-        {
-            // hash bang and anchor are exclusive
-            throw exclusive_parameters("you cannot use the hash bang (#!) and an anchor (#) in the same URI");
-        }
         result += '#';
         result += urlencode(f_anchor, "!/~");
-    }
-
-    // path when using the hash bang but only if not empty
-    if(use_hash_bang && !f_hash_bang_path.empty())
-    {
-        result += "#!/";
-        result += hash_bang_path();
     }
 
     return result;
@@ -822,9 +824,9 @@ std::string uri::get_website_uri(bool include_port, bool include_user) const
     && !f_username.empty()
     && !f_password.empty())
     {
-        result += f_username;
+        result += urlencode(f_username);
         result += ':';
-        result += f_password;
+        result += urlencode(f_password);
         result += '@';
     }
 
@@ -882,15 +884,17 @@ void uri::clear_last_error_message()
  * \li anchor -- The anchor
  * \li domain -- The domain name
  * \li full-domain -- The full domain: with sub-domains, domain, and TLD
+ * \li is-unix -- whether the address represents a Unix or Internet socket
  * \li option -- The option number \p part
  * \li option-count -- The number of options
  * \li original -- The original URI or ""
  * \li password -- The password
  * \li path -- The segment number \p part
  * \li path-count -- the number of paths
- * \li scheme -- The scheme
+ * \li port -- the port number
  * \li query-string -- The query string number \p part
  * \li query-string-count -- The number of query strings
+ * \li scheme -- The scheme
  * \li sub-domain -- The sub-domain name number \p part
  * \li sub-domain-count -- The number of sub-domains
  * \li tld or top-level-domain -- the top-level domain name
@@ -911,36 +915,41 @@ std::string uri::get_part(std::string const & name, int part) const
     }
     switch(name[0])
     {
+    case 'A':
     case 'a':
-        if(name == "anchor")
+        if(snapdev::compare_upper_exact_switch_string<"anchor">(name))
         {
             return f_anchor;
         }
         break;
 
+    case 'D':
     case 'd':
-        if(name == "domain")
+        if(snapdev::compare_upper_exact_switch_string<"domain">(name))
         {
             return f_domain;
         }
         break;
 
+    case 'F':
     case 'f':
-        if(name == "full-domain")
+        if(snapdev::compare_upper_exact_switch_string<"full-domain">(name))
         {
             return full_domain();
         }
         break;
 
+    case 'I':
     case 'i':
-        if(name == "is-unix")
+        if(snapdev::compare_upper_exact_switch_string<"is-unix">(name))
         {
             return is_unix() ? "unix" : "inet";
         }
         break;
 
+    case 'O':
     case 'o':
-        if(name == "option")
+        if(snapdev::compare_upper_exact_switch_string<"option">(name))
         {
             if(static_cast<std::size_t>(part) >= f_options.size())
             {
@@ -955,22 +964,23 @@ std::string uri::get_part(std::string const & name, int part) const
             std::advance(it, part);
             return it->second;
         }
-        if(name == "option-count")
+        if(snapdev::compare_upper_exact_switch_string<"option-count">(name))
         {
             return std::to_string(f_options.size());
         }
-        if(name == "original")
+        if(snapdev::compare_upper_exact_switch_string<"original">(name))
         {
             return f_original;
         }
         break;
 
+    case 'P':
     case 'p':
-        if(name == "password")
+        if(snapdev::compare_upper_exact_switch_string<"password">(name))
         {
             return f_password;
         }
-        if(name == "path")
+        if(snapdev::compare_upper_exact_switch_string<"path">(name))
         {
             if(static_cast<std::size_t>(part) >= f_path.size())
             {
@@ -983,18 +993,19 @@ std::string uri::get_part(std::string const & name, int part) const
             }
             return f_path[part];
         }
-        if(name == "path-count")
+        if(snapdev::compare_upper_exact_switch_string<"path-count">(name))
         {
             return std::to_string(f_path.size());
         }
-        if(name == "port")
+        if(snapdev::compare_upper_exact_switch_string<"port">(name))
         {
             return std::to_string(f_port);
         }
         break;
 
+    case 'Q':
     case 'q':
-        if(name == "query-string")
+        if(snapdev::compare_upper_exact_switch_string<"query-string">(name))
         {
             if(static_cast<std::size_t>(part) >= f_query_strings.size())
             {
@@ -1009,18 +1020,19 @@ std::string uri::get_part(std::string const & name, int part) const
             std::advance(it, part);
             return it->second;
         }
-        if(name == "query-string-count")
+        if(snapdev::compare_upper_exact_switch_string<"query-string-count">(name))
         {
             return std::to_string(f_query_strings.size());
         }
         break;
 
+    case 'S':
     case 's':
-        if(name == "scheme")
+        if(snapdev::compare_upper_exact_switch_string<"scheme">(name))
         {
             return f_scheme;
         }
-        if(name == "sub-domain")
+        if(snapdev::compare_upper_exact_switch_string<"sub-domain">(name))
         {
             if(static_cast<std::size_t>(part) >= f_sub_domains.size())
             {
@@ -1033,25 +1045,28 @@ std::string uri::get_part(std::string const & name, int part) const
             }
             return f_sub_domains[part];
         }
-        if(name == "sub-domain-count")
+        if(snapdev::compare_upper_exact_switch_string<"sub-domain-count">(name))
         {
             return std::to_string(f_sub_domains.size());
         }
         break;
 
+    case 'T':
     case 't':
-        if(name == "tld" || name == "top-level-domain")
+        if(snapdev::compare_upper_exact_switch_string<"tld">(name)
+        || snapdev::compare_upper_exact_switch_string<"top-level-domain">(name))
         {
             return f_top_level_domain;
         }
         break;
 
+    case 'U':
     case 'u':
-        if(name == "uri")
+        if(snapdev::compare_upper_exact_switch_string<"uri">(name))
         {
             return get_uri();
         }
-        if(name == "username")
+        if(snapdev::compare_upper_exact_switch_string<"username">(name))
         {
             return f_username;
         }
@@ -1379,7 +1394,8 @@ std::string uri::full_domain() const
     full_domains += f_domain;
     full_domains += f_top_level_domain;
     return full_domains;
-}
+} // LCOV_EXCL_LINE
+
 
 /** \brief Get the top level domain name.
  *
@@ -1551,13 +1567,13 @@ addr::addr::vector_t const & uri::addresses(addr::sort_t order) const
  */
 void uri::set_port(std::string const & port)
 {
-    long p = std::stol(port);
+    long const p(std::stol(port));
     if(p < 0 || p > 65535)
     {
         throw invalid_parameter(
               "\""
             + port
-            + "\" is an invalid port number");
+            + "\" is an invalid port number.");
     }
     f_port = p;
     f_addresses.clear();
@@ -1586,7 +1602,7 @@ void uri::set_port(int port)
         throw invalid_parameter(
               "port \""
             + std::to_string(port)
-            + "\" is out of range (1 to 65535)");
+            + "\" is out of range (1 to 65535).");
     }
     f_port = port;
 }
@@ -1732,10 +1748,10 @@ void uri::set_path(std::string uri_path)
                 throw invalid_path(
                       "path \""
                     + uri_path
-                    + "\" is not valid (it includes too many \"..\")");
+                    + "\" is not valid (it includes too many \"..\").");
             }
             p.erase(p.begin() + i - 1, p.begin() + i + 1);
-            --i;
+            i -= 2;
             max_parts -= 2;
         }
     }
@@ -1802,30 +1818,6 @@ std::string uri::path(bool encoded) const
 }
 
 
-std::string uri::hash_bang_path(bool encoded) const
-{
-    if(encoded)
-    {
-        std::string output;
-        bool first(true);
-        for(auto const & segment : f_hash_bang_path)
-        {
-            if(first)
-            {
-                first = false;
-            }
-            else
-            {
-                output += '/';
-            }
-            output += urlencode(segment, "~");
-        }
-        return output;
-    }
-    return snapdev::join_strings(f_hash_bang_path, "/");
-}
-
-
 /** \brief Retrieve the number of segments defined in the path.
  *
  * This function returns the number of segments defined in the
@@ -1876,9 +1868,9 @@ std::string uri::path_segment(int part) const
         throw out_of_range(
               "no path section "
             + std::to_string(part)
-            + " available (range 0 to "
-            + std::to_string(f_path.size())
-            + ")");
+            + " available (valid inclusive range 0 to "
+            + std::to_string(f_path.size() - 1)
+            + ").");
     }
     return f_path[part];
 }
@@ -1904,8 +1896,8 @@ advgetopt::string_list_t const & uri::path_list() const
 /** \brief Set an option.
  *
  * This function is used to define the value of an option in a URI.
- * Remember that options only work for URIs that are clearly marked
- * as from this website.
+ * Remember that options only work internally. They do not make it
+ * to the URI itself.
  *
  * Setting the value to an empty string has the effect of deleting
  * the given option. You may also call the unset_option() function.
@@ -1913,8 +1905,8 @@ advgetopt::string_list_t const & uri::path_list() const
  * \param[in] name  The name of the option to set.
  * \param[in] value  The new value for this option.
  *
- * \sa option();
- * \sa unset_option();
+ * \sa option()
+ * \sa unset_option()
  */
 void uri::set_option(std::string const& name, std::string const& value)
 {
@@ -2011,9 +2003,9 @@ std::string uri::option(int part, std::string & name) const
         throw out_of_range(
               "no option "
             + std::to_string(part)
-            + " available (range 0 to "
-            + std::to_string(f_options.size())
-            + ")");
+            + " available (valid inclusive range 0 to "
+            + std::to_string(f_options.size() - 1)
+            + ").");
     }
     auto it(f_options.begin());
     std::advance(it, part);
@@ -2042,6 +2034,9 @@ uri::uri_options_t const& uri::options_list() const
  *
  * This function is used to change the named query string with the
  * specified value.
+ *
+ * \warning
+ * If the name is the empty string, then nothing happens.
  *
  * \param[in] name  The name of the query string option.
  * \param[in] value  The value of the query string option.
@@ -2195,7 +2190,7 @@ std::string uri::query_string() const
         }
     }
     return result;
-}
+} // LCOV_EXCL_LINE
 
 
 /** \brief Retrieve whether a query option is defined.
@@ -2284,9 +2279,9 @@ std::string uri::query_option(int part, std::string & name) const
         throw out_of_range(
               "query-option "
             + std::to_string(part)
-            + " does not exist (range 0 to "
-            + std::to_string(f_query_strings.size())
-            + ")");
+            + " does not exist (valid inclusive range 0 to "
+            + std::to_string(f_query_strings.size() - 1)
+            + ").");
     }
     auto it(f_query_strings.begin());
     std::advance(it, part);
@@ -2298,11 +2293,11 @@ std::string uri::query_option(int part, std::string & name) const
  *
  * This function returns a reference to the internal map of query strings.
  * This is useful to use the begin()/end() and other functions to go through
- * the map.
+ * the whole list of parameters.
  *
  * \return A constant reference to the internal query string map.
  */
-const uri::uri_options_t& uri::query_string_list() const
+uri::uri_options_t const & uri::query_string_list() const
 {
     return f_query_strings;
 }
@@ -2334,7 +2329,7 @@ void uri::set_anchor(std::string const & uri_anchor)
         throw invalid_parameter(
               "anchor string \""
             + uri_anchor
-            + "\" cannot include a '#' character");
+            + "\" cannot include a '#' character.");
     }
     f_anchor = uri_anchor;
 }
@@ -2507,7 +2502,7 @@ std::string urlencode(std::string const & in, char const * accepted)
     }
 
     return encoded;
-}
+} // LCOV_EXCL_LINE
 
 
 /** \brief Decode a URI so it can be used internally.
@@ -2568,14 +2563,14 @@ std::string urldecode(std::string const & in, bool relax)
 //#endif
                     throw invalid_uri(
                           "urldecode(\""
-                        + in
+                        + libutf8::to_visible_ascii(in)
                         + "\", "
                         + (relax ? "true" : "false")
                         + ") failed because of an invalid %xx character (digits are "
                         + std::to_string(u[0])
                         + " / "
                         + std::to_string(u[1])
-                        + ")");
+                        + ").");
                 }
                 // use the % as is
                 out += '%';
@@ -2603,36 +2598,43 @@ std::string urldecode(std::string const & in, bool relax)
 //#endif
                     throw invalid_uri(
                           "urldecode(\""
-                         + in
+                         + libutf8::to_visible_ascii(in)
                          + "\", "
                          + (relax ? "true" : "false")
                          + ") failed because of an invalid %xx character (digits are "
                          + std::to_string(static_cast<int>(u[0]))
                          + " / "
                          + std::to_string(static_cast<int>(u[1]))
-                         + ")");
+                         + ").");
                 }
+
                 // use the % as is
-                out += c;
+                //
+                out += '%';
                 --u;
                 continue;
             }
+
             // skip one of the two characters here, the other
             // is skipped in the for() statement
+            //
             ++u;
             out += c;
         }
         else if(relax
 
                 // these are the only characters allowed by the RFC
+                //
                 || (*u >= 'A' && *u <= 'Z')
                 || (*u >= 'a' && *u <= 'z')
                 || (*u >= '0' && *u <= '9')
                 || *u == '.' || *u == '-'
                 || *u == '/' || *u == '_'
 
-                // not legal in a URI considered 100% valid but most
-                // systems accept the following as is so we do too
+                // the following are not legal in what is considered a
+                // valid URI but most systems accept those as is so we
+                // do too
+                //
                 || *u == '~' || *u == '!'
                 || *u == '@' || *u == ','
                 || *u == ';' || *u == ':'
@@ -2650,8 +2652,8 @@ std::string urldecode(std::string const & in, bool relax)
             // The at sign (@) is used in email addresses.
             //
             // The comma (,) is often used to separate elements; for example
-            // the paging support uses "page=p3,s30" for show page 3 with
-            // 30 elements per page.
+            // the paging support uses "page=p3,s30" for "show page 3 with
+            // 30 elements per page".
             //
             // The semi-colon (;) may appear if you have an HTML entity in
             // a query string (i.e. "...?value=this+%26amp;+that".)
@@ -2668,12 +2670,12 @@ std::string urldecode(std::string const & in, bool relax)
 //#endif
             throw invalid_uri(
                     "urldecode(\""
-                  + in
+                  + libutf8::to_visible_ascii(in)
                   + "\", "
                   + (relax ? "true" : "false")
                   + ") failed because of an invalid character ("
                   + std::to_string(static_cast<int>(*u))
-                  + ")");
+                  + ").");
         }
     }
 
@@ -2790,6 +2792,7 @@ bool is_scheme_secure(std::string const & uri_scheme)
         case 'S':
             return snapdev::compare_upper_exact_switch_string<"SMTPS">(uri_scheme)
                 || snapdev::compare_upper_exact_switch_string<"SNNTP">(uri_scheme)
+                || snapdev::compare_upper_exact_switch_string<"SSH">(uri_scheme)
                 || snapdev::compare_upper_exact_switch_string<"SSMTP">(uri_scheme)
                 || snapdev::compare_upper_exact_switch_string<"SUBMISSIONS">(uri_scheme)
                 || snapdev::compare_upper_exact_switch_string<"SUUCP">(uri_scheme)
@@ -2818,6 +2821,7 @@ bool is_port_secure(int port)
 {
     switch(port)
     {
+    case 22:    // ssh
     case 443:   // https
     case 465:   // submissions ssmtp smtps urd
     case 563:   // nntps snntp

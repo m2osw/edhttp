@@ -17,6 +17,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
+// self
+//
+#include    "http/http_connection.h"
+
+#include    "http_request.h"
+
+
 // eventdispatcher
 //
 #include    <eventdispatcher/udp_server_connection.h>
@@ -35,6 +42,7 @@ class http_client_connection_impl;
 
 class http_udp_connection
     : public ed::udp_server_connection
+    , public http_connection
 {
 public:
     typedef std::shared_ptr<http_udp_connection>        pointer_t;
@@ -43,6 +51,11 @@ public:
                                     http_udp_connection(http_udp_connection const & rhs) = delete;
 
     http_udp_connection &           operator = (http_udp_connection const & rhs) = delete;
+
+    // http_connection implementation
+    //
+    virtual bool                    send_request(http_request::pointer_t request) override;
+    virtual bool                    is_h2() const override;
 
     // connection implementation
     //

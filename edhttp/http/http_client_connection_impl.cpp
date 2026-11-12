@@ -69,6 +69,18 @@ void http_client_connection_impl::set_keep_alive(bool keep_alive)
 }
 
 
+allowed_http_protocol_t http_client_connection_impl::get_allowed_http_protocols() const
+{
+    return f_allowed_http_protocols;
+}
+
+
+void http_client_connection_impl::set_allowed_http_protocols(allowed_http_protocol_t allowed)
+{
+    f_allowed_http_protocols = allowed;
+}
+
+
 delay_t http_client_connection_impl::get_http_connection_timeout() const
 {
     return f_http_connection_timeout;
@@ -163,32 +175,63 @@ http_udp_connection::pointer_t http_client_connection_impl::get_udp_ipv6_connect
 }
 
 
+void http_client_connection_impl::process_connected(ed::connection::pointer_t c)
+{
+    f_parent->process_connected(c);
+}
+
+
+void http_client_connection_impl::process_connection_failed(ed::connection::pointer_t c)
+{
+    f_parent->process_connection_failed(c);
+}
+
+
 void http_client_connection_impl::send_request(http_request::pointer_t request)
 {
-    std::string const host(request.get_host());
+    std::string const host(request->get_host());
 
-    // if there is already a connection to that host, use it
+    http_domain::pointer_t d{};
+
+    // if there is already a valid connection to that host, use it
     //
-    auto const it(f_connections.find(host));
-    if(it != f_connections.end())
     {
-        if(it->valid_socket())
+        auto const it(f_domains.find(host));
+        if(it != f_domains.end())
         {
-            it->send_request(request);
-            return;
+            if(it->second->get_status() == http_domain_status_t::HTTP_DOMAIN_STATUS_DISCONNECTED)
+            {
+                f_domains.erase(it);
+            }
+            else
+            {
+                d = it->second;
+            }
         }
-        f_connections.erase(it);
     }
 
-    http_permanent_tcp_connection::pointer_t c(std::make_shared<http_domain>(
-          this
-        , host
-        , request.get_addresses()
-        , request.get_uri().is_scheme_secure()));
+    if(d == nullptr)
+    {
+        d = std::make_shared<http_domain>(
+              this
+            , host
+            , request->get_addresses()
+            , request->get_uri().is_scheme_secure()
+                    ? ed::mode_t::MODE_ALWAYS_SECURE
+                    : ed::mode_t::MODE_PLAIN
+            , f_allowed_http_protocols);
 
-    f_connections[host] = c;
+        f_domains[host] = d;
+    }
 
-    c->send_request(request);
+    d->send_request(request);
+}
+
+
+bool http_client_connection_impl::process_response(http_response::pointer_t response)
+{
+    http_request::pointer_t request(response->get_request());
+    return request->process_response(response);
 }
 
 

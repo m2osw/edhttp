@@ -18,8 +18,10 @@
 
 // self
 //
-#include    "http/http_tcp_client_async_connection.h"
+#include    <edhttp/http/http_tcp_client_async_connection.h>
 
+#include    <edhttp/exception.h>
+#include    <edhttp/parametrized_value_list.h>
 
 
 // snaplogger
@@ -70,11 +72,12 @@ http_tcp_client_async_connection::http_tcp_client_async_connection(
           http_domain * parent
         , addr::addr const & address
         , std::string const & host
-        , ed::mode_t mode)
+        , ed::mode_t mode
+        , bool allow_http2)
     : timer(-1)
     , f_parent(parent)
     , f_communicator(ed::communicator::instance())
-    , f_runner(this, address, host, mode)
+    , f_runner(this, address, host, mode, allow_http2)
     , f_thread("asynchronous connection handler thread", &f_runner)
 {
 }
@@ -179,61 +182,99 @@ void http_tcp_client_async_connection::thread_done()
     {
         SNAP_LOG_ERROR
             << "connection to "
-            << f_thread_runner.get_address().to_ipv4or6_string(addr::STRING_IP_BRACKET_ADDRESS | addr::STRING_IP_PORT)
+            << f_runner.get_address().to_ipv4or6_string(addr::STRING_IP_BRACKET_ADDRESS | addr::STRING_IP_PORT)
             << " failed with: "
             << f_runner.get_last_error()
             << SNAP_LOG_SEND;
 
         // signal that an error occurred
         //
-        f_parent->process_connection_failed(f_runner.get_last_error());
+        f_parent->process_connection_failed(shared_from_this());
     }
     else
     {
-        f_messenger = std::make_shared<messenger>(f_parent, client);
+        f_client = client;
 
-        // add the messenger to the communicator
+        // add the client to the communicator
         //
-        communicator::instance()->add_connection(f_messenger);
-
-        // if some messages were cached, process them immediately
-        //
-        while(!f_message_cache.empty())
-        {
-            f_messenger->send_message(f_message_cache[0]);
-            f_message_cache.erase(f_message_cache.begin());
-        }
+        f_communicator->add_connection(f_client);
 
         // let the client know we are now connected
         //
-        f_parent->process_connected(this);
+        f_parent->process_connected(shared_from_this());
     }
-}
-
-
-bool http_tcp_client_async_connection::is_h2() const
-{
 }
 
 
 bool http_tcp_client_async_connection::is_websocket() const
 {
+    return f_is_websocket;
 }
 
 
-void http_tcp_client_async_connection::process_response(http_response const & response)
+bool http_tcp_client_async_connection::process_response(http_response::pointer_t response)
 {
-    f_parent->process_response(response);
+    std::string const alt_svc(response->get_header(g_name_edhttp_field_alt_svc));
+    if(!alt_svc.empty())
+    {
+        parametrized_value_list ws;
+        if(ws.parse(alt_svc))
+        {
+            // parsing worked, see if there are h2/h3 definitions
+            //
+            // for now, we completely ignore the "persist=1" possible
+            // parameter since we are not monitoring the network
+            // connection
+            //
+            for(int v(2); v <= 3; ++v)
+            {
+                std::string protocol("h");
+                protocol += std::to_string(v);
+                std::string const key(protocol + ':' + f_parent->get_host());
+                parametrized_value const * p(ws.get_part(key));
+                if(p != nullptr)
+                {
+                    std::int64_t ttl(86400);
+                    if(p->has_parameter("ma"))
+                    {
+                        std::int64_t ma(-1);
+                        if(p->get_parameter_as_integer("ma", ma)
+                        && ma > 0
+                        && ma < 31536000)
+                        {
+                            ttl = ma;
+                        }
+                    }
+                    accepted_protocol(key, ttl);
+                }
+            }
+        }
+    }
+
+    return  f_parent->process_response(response);
 }
 
 
-bool http_tcp_client_async_connection::is_writer() const
+bool http_tcp_client_async_connection::process_next_request()
 {
+    return f_parent->process_next_request();
 }
 
 
-void http_tcp_client_async_connection::send_request(http_request::pointer_t request)
+bool http_tcp_client_async_connection::is_h2() const
 {
+    return f_is_h2;
+}
+
+
+bool http_tcp_client_async_connection::send_request(http_request::pointer_t request)
+{
+    if(f_client == nullptr)
+    {
+        throw logic_error("http_tcp_client_async_connection::send_request() when client is not yet connected.");
+    }
+
+    return f_client->send_request(request);
 }
 
 
@@ -243,31 +284,11 @@ std::size_t http_tcp_client_async_connection::get_maximum_header_size() const
 }
 
 
-void http_tcp_client_async_connection::process_read()
-{
-}
-
-
 void http_tcp_client_async_connection::process_hup()
 {
     timer::process_hup();
 
     f_parent->process_hup();
-}
-
-
-void http_tcp_client_async_connection::process_write()
-{
-}
-
-
-void http_tcp_client_async_connection::process_h1_buffer()
-{
-}
-
-
-void http_tcp_client_async_connection::process_h2_buffer()
-{
 }
 
 

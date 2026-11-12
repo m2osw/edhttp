@@ -45,6 +45,7 @@ DECLARE_EXCEPTION(edhttp_exception, duplicate_header);
 DECLARE_EXCEPTION(edhttp_exception, exclusive_parameters);
 DECLARE_EXCEPTION(edhttp_exception, expected_token);
 DECLARE_EXCEPTION(edhttp_exception, incompatible);
+DECLARE_EXCEPTION(edhttp_exception, initialization_failure);
 DECLARE_EXCEPTION(edhttp_exception, invalid_checksum);
 DECLARE_EXCEPTION(edhttp_exception, invalid_parameter);
 DECLARE_EXCEPTION(edhttp_exception, invalid_path);
@@ -59,7 +60,7 @@ DECLARE_EXCEPTION(edhttp_exception, not_found);
 DECLARE_EXCEPTION(edhttp_exception, not_supported);
 DECLARE_EXCEPTION(edhttp_exception, too_many_names);
 DECLARE_EXCEPTION(edhttp_exception, unknown_encoding);
-DECLARE_EXCEPTION(edhttp_exception, unquotable_string);
+//DECLARE_EXCEPTION(edhttp_exception, unquotable_string);
 
 
 

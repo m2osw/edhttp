@@ -20,8 +20,9 @@
 //
 #include    "edhttp/cache_control.h"
 
-#include    "edhttp/string_part.h"
-#include    "edhttp/weighted_http_string.h"
+#include    "edhttp/names.h"
+//#include    "edhttp/parametrized_value.h"
+#include    "edhttp/parametrized_value_list.h"
 
 
 // advgetopt
@@ -144,11 +145,11 @@ void cache_control_settings::set_cache_info(std::string const & info, bool const
 
     // parse the data with the weighted HTTP string implementation
     //
-    weighted_http_string client_cache_control(info);
+    parametrized_value_list client_cache_control(info);
 
     // no go through the list of parts and handle them appropriately
     //
-    string_part::vector_t const & cache_control_parts(client_cache_control.get_parts());
+    parametrized_value::vector_t const & cache_control_parts(client_cache_control.get_parts());
     for(auto const & c : cache_control_parts)
     {
         // get the part name
@@ -179,14 +180,14 @@ void cache_control_settings::set_cache_info(std::string const & info, bool const
         switch(name[0])
         {
         case 'i':
-            if(name == "immutable")
+            if(name == g_name_edhttp_part_immutable)
             {
                 set_immutable(!negate);
             }
             break;
 
         case 'm':
-            if(name == "max-age")
+            if(name == g_name_edhttp_part_max_age)
             {
                 set_max_age(c.get_value());
             }

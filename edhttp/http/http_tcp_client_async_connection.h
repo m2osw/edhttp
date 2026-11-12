@@ -19,8 +19,8 @@
 
 // self
 //
+#include    "http/http_connection.h"
 #include    "http/http_domain.h"
-
 #include    "http/runner.h"
 #include    "http/thread_signal_handler.h"
 
@@ -45,6 +45,7 @@ namespace detail
 
 class http_tcp_client_async_connection
     : public ed::timer
+    , public http_connection
 {
 public:
     typedef std::shared_ptr<http_tcp_client_async_connection>       pointer_t;
@@ -54,7 +55,8 @@ public:
                                           http_domain * parent
                                         , addr::addr const & address
                                         , std::string const & host
-                                        , ed::mode_t mode);
+                                        , ed::mode_t mode
+                                        , bool allow_http2);
                                     http_tcp_client_async_connection(http_tcp_client_async_connection const &) = delete;
     virtual                         ~http_tcp_client_async_connection() override;
 
@@ -63,18 +65,20 @@ public:
 
     bool                            start();
     void                            trigger_thread_done();
-    bool                            is_h2() const;
+    bool                            has_output() const;
     bool                            is_websocket() const;
-    void                            send_request(http_request::pointer_t request);
     std::size_t                     get_maximum_header_size() const;
-    void                            process_response(http_response const & response);
+    bool                            process_response(http_response::pointer_t response);
+    bool                            process_next_request();
+
+    // http_connection implementation
+    //
+    virtual bool                    send_request(http_request::pointer_t request) override;
+    virtual bool                    is_h2() const override;
 
     // connection implementation
     //
-    virtual bool                    is_writer() const override;
-    virtual void                    process_read() override;
     virtual void                    process_hup() override;
-    virtual void                    process_write() override;
 
 private:
     enum class h1_state_t : std::uint8_t
@@ -88,6 +92,7 @@ private:
 
     void                            process_h1_buffer();
     void                            process_h2_buffer();
+    void                            thread_done();
 
     http_domain *                   f_parent = nullptr;
     ed::communicator::pointer_t     f_communicator = ed::communicator::pointer_t();
@@ -96,6 +101,8 @@ private:
     thread_signal_handler::pointer_t
                                     f_thread_done = thread_signal_handler::pointer_t();
 
+    http_tcp_client_connection::pointer_t
+                                    f_client = http_tcp_client_connection::pointer_t();
     bool                            f_is_h2 = false;
     bool                            f_got_http1_header = false;
     bool                            f_is_websocket = false;

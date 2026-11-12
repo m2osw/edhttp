@@ -42,6 +42,27 @@ http_udp_connection::http_udp_connection(http_client_connection_impl * parent, a
 }
 
 
+bool http_udp_connection::send_request(http_request::pointer_t request)
+{
+    header_t const & headers(request->get_headers());
+    for(auto const & h : headers)
+    {
+        if(h.first == "todo")
+        {
+            break;
+        }
+    }
+
+    return true;
+}
+
+
+bool http_udp_connection::is_h2() const
+{
+    return false;
+}
+
+
 void http_udp_connection::process_read()
 {
 }

@@ -57,7 +57,8 @@ public:
                                           http_tcp_client_async_connection * parent
                                         , addr::addr const & address
                                         , std::string const & host
-                                        , ed::mode_t mode);
+                                        , ed::mode_t mode
+                                        , bool allow_http2);
 
                                     runner(runner const &) = delete;
     runner &                        operator = (runner const &) = delete;
@@ -79,6 +80,7 @@ private:
     addr::addr const                f_address;
     std::string const               f_host;
     ed::mode_t const                f_mode;
+    bool const                      f_allow_http2;
     http_tcp_client_connection::pointer_t
                                     f_tcp_connection = http_tcp_client_connection::pointer_t();
     std::string                     f_last_error = std::string();

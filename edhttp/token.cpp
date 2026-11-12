@@ -232,12 +232,12 @@ token::token(std::string && s)
 }
 
 
-std::strong_ordering token::operator <=> (token const & rhs)
+std::strong_ordering token::operator <=> (token const & rhs) const
 {
     switch(compare_tokens(*this, rhs))
     {
-    case 0:
-        return std::strong_ordering::equal;
+    case 0:                                 // LCOV_EXCL_LINE -- see the operator == and operator !=
+        return std::strong_ordering::equal; // LCOV_EXCL_LINE
 
     case -1:
         return std::strong_ordering::less;
@@ -245,10 +245,22 @@ std::strong_ordering token::operator <=> (token const & rhs)
     case 1:
         return std::strong_ordering::greater;
 
-    default:
-        throw logic_error("unknown token order.");
+    default:                                       // LCOV_EXCL_LINE
+        throw logic_error("unknown token order."); // LCOV_EXCL_LINE
 
     }
+}
+
+
+bool token::operator == (token const & rhs) const
+{
+    return compare_tokens(*this, rhs) == 0;
+}
+
+
+bool token::operator != (token const & rhs) const
+{
+    return compare_tokens(*this, rhs) != 0;
 }
 
 
@@ -268,6 +280,10 @@ bool token::is_valid() const
  *     User-Agent: <token>/<version> <comment>
  * \endcode
  *
+ * The function expects the token to include any non-token character
+ * to be defined as a %XX where XX is an hexadecimal number between
+ * 0x00 and 0xFF (although we only accept VCHAR, SP, HTAB).
+ *
  * \param[in] token  The string to verify.
  *
  * \return true if \p token is considered to be a valid token.
@@ -279,20 +295,9 @@ bool is_token(std::string const & token)
         throw invalid_token("an HTTP token cannot be empty.");
     }
 
-    // we can have a '$' inside the name, but not at the start
-    //
-    // TODO: try to find out why I added that restriction because it's
-    //       definitely not in the specification
-    //
-    //if(token[0] == '$')
-    //{
-    //    return false;
-    //}
-
-    for(auto const t : token)
+    for(std::uint8_t const c : token)
     {
-        std::uint8_t const c(static_cast<std::uint8_t>(t));
-        if(c >= 127
+        if(c > static_cast<std::uint8_t>('~')
         || (g_http_token[c >> 5] & (1 << (c & 0x1F))) == 0)
         {
             return false;
@@ -316,7 +321,7 @@ bool is_restricted_token(std::string const & token)
 {
     if(token.empty())
     {
-        throw invalid_token("an HTTP token cannot be empty.");
+        throw invalid_token("a restricted HTTP token cannot be empty.");
     }
 
     // TODO: the first character is further restricted in newer documentation
@@ -365,19 +370,20 @@ bool is_restricted_token(std::string const & token)
  */
 int compare_tokens(std::string const & lhs, std::string const & rhs, bool underscore_equal_dash)
 {
-    auto to_lower = [underscore_equal_dash](char const c) -> int
+    auto to_lower = [underscore_equal_dash](std::uint8_t const c) -> int
     {
-        if(c >= 127
+        if(c > static_cast<std::uint8_t>('~')
         || (g_http_token[c >> 5] & (1 << (c & 0x1F))) == 0)
         {
             throw invalid_token("one of the input token includes an invalid character.");
         }
 
-        return c == '_' && underscore_equal_dash
-                ? '-'
-                : (c >= 'A' && c <= 'Z'
-                        ? c | 0x20
-                        : c);
+        if(c == '_')
+        {
+            return underscore_equal_dash ? '-' : c;
+        }
+
+        return c >= 'A' && c <= 'Z' ? c | 0x20 : c;
     };
 
     for(std::size_t idx(0); idx < lhs.length() && idx < rhs.length(); ++idx)

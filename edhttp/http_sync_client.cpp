@@ -408,14 +408,14 @@ SNAP_LOG_TRACE
                 // if content-length is zero, the body response is empty
                 if(content_length > 0)
                 {
-                    std::vector<char> buffer;
+                    buffer_t buffer;
                     buffer.resize(content_length);
 SNAP_LOG_TRACE
 << "reading "
 << content_length
 << " bytes..."
 << SNAP_LOG_SEND;
-                    int const r(f_connection->read(&buffer[0], content_length));
+                    int const r(f_connection->read(reinterpret_cast<char *>(&buffer[0]), content_length));
                     if(r < 0)
                     {
                         SNAP_LOG_ERROR
@@ -430,10 +430,10 @@ SNAP_LOG_TRACE
                             << SNAP_LOG_SEND;
                         throw client_io_error("read returned before the entire content buffer was read.");
                     }
-                    f_response->set_response(std::string(&buffer[0], content_length));
+                    f_response->set_response(buffer);
 SNAP_LOG_TRACE
 << "body ["
-<< f_response->get_response()
+<< f_response->get_response_as_string()
 << "]..."
 << SNAP_LOG_SEND;
                 }

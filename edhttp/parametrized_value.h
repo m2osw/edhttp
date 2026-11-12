@@ -19,6 +19,7 @@
 
 // C++
 //
+#include    <cstdint>
 #include    <map>
 #include    <string>
 #include    <vector>
@@ -30,11 +31,11 @@ namespace edhttp
 
 
 
-class string_part
+class parametrized_value
 {
 public:
-    typedef float               level_t;
-    typedef std::vector<string_part> vector_t; // do NOT use a map, we want to keep them in order!
+    typedef float                           level_t;
+    typedef std::vector<parametrized_value> vector_t; // do NOT use a map, we want to keep them in order!
 
     // an authoritative document at the IANA clearly says that
     // the default level (quality value) is 1.0f.
@@ -46,20 +47,23 @@ public:
 
     static level_t constexpr    UNDEFINED_LEVEL() { return -1.0f; }
 
-                                string_part(std::string const & name);
+                                parametrized_value(std::string const & name);
 
     std::string const &         get_name() const;
     std::string const &         get_value() const;  // in case the first name has a "name=value" part
     void                        set_value(std::string const & value);
     level_t                     get_level() const;
     void                        set_level(level_t const level);
+    bool                        has_parameter(std::string const & name) const;
     std::string                 get_parameter(std::string const & name) const;
+    bool                        get_parameter_as_integer(std::string const & name, std::int64_t & result) const;
+    bool                        get_parameter_as_floating_point(std::string const & name, double & result) const;
     void                        add_parameter(std::string const & name, std::string const & value);
     std::string                 to_string() const;
 
-    bool                        operator < (string_part const & rhs) const;
+    bool                        operator < (parametrized_value const & rhs) const;
 
-    static char                 value_require_quotes(std::string const & value);
+    static std::string          qvalue(std::string const & value);
 
 private:
     typedef std::map<std::string, std::string>      parameters_t;

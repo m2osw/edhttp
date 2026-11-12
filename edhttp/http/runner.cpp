@@ -28,6 +28,16 @@
 #include    <eventdispatcher/exception.h>
 
 
+// cppthread
+//
+#include    <cppthread/guard.h>
+
+
+// snaplogger
+//
+#include    <snaplogger/message.h>
+
+
 // last include
 //
 #include    <snapdev/poison.h>
@@ -45,12 +55,14 @@ runner::runner(
 	      http_tcp_client_async_connection * parent
 	    , addr::addr const & address
         , std::string const & host
-	    , ed::mode_t mode)
+	    , ed::mode_t mode
+        , bool allow_http2)
     : cppthread::runner("background http_tcp_connection for asynchronous connections")
     , f_parent(parent)
     , f_address(address)
     , f_host(host)
     , f_mode(mode)
+    , f_allow_http2(allow_http2)
 {
 }
 
@@ -101,7 +113,8 @@ void runner::connect()
 
         // only secure connections support the ALPN option
         //
-        if(f_mode != ed::mode_t::MODE_PLAIN)
+        if(f_mode != ed::mode_t::MODE_PLAIN
+        && f_allow_http2)
         {
             http_options.add_alpn("h2");
             http_options.add_alpn("http/1.1");
@@ -146,7 +159,7 @@ void runner::connect()
     SNAP_LOG_ERROR
         << "connection to "
         << addr::setaddrmode(addr::STRING_IP_BRACKET_ADDRESS | addr::STRING_IP_PORT)
-        << f_addresses
+        << f_address
         << " failed with: "
         << f_last_error
         << " ("
@@ -192,7 +205,7 @@ addr::addr const & runner::get_address() const
  *
  * \return The connection pointer.
  */
-ed::tcp_bio_client::pointer_t runner::release_client()
+http_tcp_client_connection::pointer_t runner::release_client()
 {
     cppthread::guard g(f_mutex);
     http_tcp_client_connection::pointer_t tcp_connection;

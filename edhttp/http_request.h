@@ -20,21 +20,28 @@
 // self
 //
 #include    <edhttp/uri.h>
-#include    <edhttp/http_response.h>
+#include    <edhttp/utils.h>
+#include    <edhttp/version.h>
 
 
 // eventdispatcher
 //
-#include    <eventdispatcher/tcp_bio_client.h>
+#include    <eventdispatcher/utils.h>
 
 
 // libaddr
 //
-#include    <libaddr/addr_range.h>
+#include    <libaddr/addr.h>
+
+
+// snapdev
+//
+#include    <snapdev/callback_manager.h>
 
 
 // C++
 //
+#include    <functional>
 #include    <vector>
 
 
@@ -44,20 +51,33 @@ namespace edhttp
 
 
 
+class http_response;
+
+
+typedef std::map<std::string, std::string>      header_t;
+typedef buffer_t                                attachment_t;
+
+
 class http_request
 {
 public:
-    typedef std::shared_ptr<http_request>       pointer_t;
+    typedef std::shared_ptr<http_request>           pointer_t;
+    typedef std::list<pointer_t>                    list_t;
+    typedef std::function<bool(std::shared_ptr<http_response> response)>
+                                                    callback_t;
+    typedef snapdev::callback_manager<callback_t>   callback_manager_t;
+
 
     ed::mode_t                  get_mode() const;
+    uri const &                 get_uri() const;
     addr::addr::vector_t        get_addresses() const;
     std::string                 get_host() const;
     int                         get_port() const;
     std::string                 get_agent_name() const;
-    http_protocol_t             get_protocol() const;
     std::string                 get_method() const;
     std::string                 get_path() const;
     std::string                 get_header(std::string const & name) const;
+    header_t const &            get_headers() const;
     std::string                 get_post(std::string const & name) const;
     std::string                 get_body() const; // also returns data
     std::string                 get_request(bool keep_alive) const;
@@ -68,25 +88,21 @@ public:
     void                        set_host(std::string const & host);
     void                        set_port(int port);
     void                        set_agent_name(std::string const & agent_name);
-    void                        set_protocol(http_protocol_t protocol);
     void                        set_method(std::string const & method);
     void                        set_path(std::string const & path);
-    void                        set_header(std::string const & name, std::string const & value);
+    void                        set_header(std::string name, std::string const & value);
     void                        set_post(std::string const & name, std::string const & value);
     void                        set_query_option(std::string const & name, std::string const & value);
     void                        set_basic_auth(std::string const & username, std::string const & secret);
     void                        set_data(std::string const & data);
     void                        set_body(std::string const & body);
 
-    http_response::callback_manager_t::callback_id_t
-                                add_response_callback(http_response::callback_t f);
-    bool                        remove_response_callback(http_response::callback_manager_t::callback_id_t id);
-    bool                        process_response(http_response::pointer_t response);
+    callback_manager_t::callback_id_t
+                                add_response_callback(callback_t f);
+    bool                        remove_response_callback(callback_manager_t::callback_id_t id);
+    bool                        process_response(std::shared_ptr<http_response> response);
 
 private:
-    typedef std::map<std::string, std::string>  header_t;
-    typedef std::vector<char>                   attachment_t;
-
     // I replaced all of these parts with the f_uri instead
     //std::string                 f_host = std::string();
     //std::int32_t                f_port = -1;
@@ -95,8 +111,7 @@ private:
     uri                         f_uri = uri();
 
     ed::mode_t                  f_mode = ed::mode_t::MODE_PLAIN;
-    std::string                 f_agent_name = std::string("edhttp");
-    http_protocol_t             f_protocol = http_protocol_t::HTTP_PROTOCOL_UNKNOWN;
+    std::string                 f_agent_name = std::string("edhttp/" EDHTTP_VERSION_STRING);
     std::string                 f_method = std::string();
     header_t                    f_headers = header_t();
     header_t                    f_post = header_t();
@@ -106,8 +121,7 @@ private:
     bool                        f_has_data = false;
     bool                        f_has_post = false;
     bool                        f_has_attachment = false; // not used yet
-    http_response::callback_manager_t
-                                f_response_callbacks = http_response::callback_manager_t();
+    callback_manager_t          f_response_callbacks = callback_manager_t();
 };
 
 

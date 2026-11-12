@@ -1,3 +1,10 @@
+edhttp (1.2.0.0~noble) noble; urgency=high
+
+  * Started implementation of the http_client_connection.
+  * Many clean ups and enhancements.
+
+ -- Alexis Wilke <alexis@m2osw.com>  Sun, 08 Nov 2026 14:08:55 -0800
+
 edhttp (1.1.1.0~noble) noble; urgency=high
 
   * Tweaked URL validator to return useful error messages.

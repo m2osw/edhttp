@@ -41,7 +41,36 @@ public:
                                 token(std::string const & s);
                                 token(std::string && s);
 
-    std::strong_ordering        operator <=> (token const & rhs);
+    token &                     operator = (token const & rhs) = default;
+    token &                     operator = (token && rhs) = default;
+
+    std::strong_ordering        operator <=> (token const & rhs) const;
+    bool                        operator == (token const & rhs) const;
+    bool                        operator != (token const & rhs) const;
+
+    template<typename T>
+    requires (!std::same_as<std::remove_cvref_t<T>, token>)
+          && std::convertible_to<T, std::string_view>
+    friend std::strong_ordering operator <=> (token const & lhs, T const & rhs)
+    {
+        return lhs.operator <=> (rhs);
+    }
+
+    template<typename T>
+    requires (!std::same_as<std::remove_cvref_t<T>, token>)
+          && std::convertible_to<T, std::string_view>
+    friend bool operator == (token const & lhs, T const & rhs)
+    {
+        return lhs.operator == (token(rhs));
+    }
+
+    template<typename T>
+    requires (!std::same_as<std::remove_cvref_t<T>, token>)
+          && std::convertible_to<T, std::string_view>
+    friend bool operator != (token const & lhs, T const & rhs)
+    {
+        return lhs.operator != (token(rhs));
+    }
 
     bool                        is_valid() const;
 

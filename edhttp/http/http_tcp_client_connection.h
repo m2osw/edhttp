@@ -22,12 +22,18 @@
 #include    <edhttp/compression/compressor.h>
 #include    <edhttp/utils.h>
 #include    <edhttp/http_request.h>
+#include    <edhttp/http_response.h>
 
 
 
 // eventdispatcher
 //
 #include    <eventdispatcher/tcp_client_connection.h>
+
+
+// nghttp2
+//
+#include    <nghttp2/nghttp2.h>
 
 
 
@@ -39,6 +45,9 @@ namespace detail
 
 
 class http_tcp_client_async_connection;
+
+
+constexpr std::size_t const         DEFAULT_HTTP2_MAX_STREAMS = 100;
 
 
 class http_tcp_client_connection
@@ -53,13 +62,15 @@ public:
                                         , ed::mode_t const mode
                                         , ed::tcp_bio_options const & opt);
                                     http_tcp_client_connection(http_tcp_client_connection const &) = delete;
+    virtual                         ~http_tcp_client_connection() override;
 
     http_tcp_client_connection      operator = (http_tcp_client_connection const &) = delete;
 
+    bool                            has_output() const;
     bool                            is_h2() const;
     bool                            is_websocket() const;
     bool                            is_writer() const;
-    void                            send_request(http_request::pointer_t request);
+    bool                            send_request(http_request::pointer_t request);
 
     // connection implementation
     //
@@ -71,6 +82,17 @@ public:
     //
     //virtual ssize_t                 read(void * buf, std::size_t length) override;
     virtual ssize_t                 write(void const * buf, std::size_t length) override;
+
+    // internal
+    //
+    void                            process_h2_response(nghttp2_frame const * frame);
+    void                            set_h2_header(
+                                          nghttp2_frame const * frame
+                                        , std::string const & name
+                                        , std::string const & value);
+    void                            close_h2_stream(
+                                          std::int32_t stream_id
+                                        , std::uint32_t error_code);
 
 private:
     enum class h1_state_t : std::uint8_t
@@ -91,9 +113,12 @@ private:
         H1_STATE_DONE,              // streamed the body, we cannot get more (socket should be closed)
     };
 
-    void                            process_h1_buffer();
-    void                            process_h2_buffer();
+    void                            create_h2_session();
+    void                            send_h2_request(http_request::pointer_t request, http_response::pointer_t response);
+    ssize_t                         process_h2_buffer();
 
+    void                            send_h1_request(http_request::pointer_t request, http_response::pointer_t response);
+    ssize_t                         process_h1_buffer();
     bool                            process_h1_status_line(std::string const & status_line);
     bool                            process_h1_header(std::string const & header);
 
@@ -108,11 +133,16 @@ private:
     // HTTP/1.x supports one request at a time so we can have the request
     // and results as fields
     //
-    http_request                    f_h1_request = http_request();
-    http_response                   f_h1_response = http_response();
+    http_response::pointer_t        f_h1_response = http_response::pointer_t(); // the response has the request pointer
     std::size_t                     f_content_length = 0;
     compressor *                    f_compressor = nullptr;
     buffer_t                        f_data = buffer_t();
+
+    // h2 session
+    //
+    std::size_t                     f_h2_max_streams = DEFAULT_HTTP2_MAX_STREAMS;
+    nghttp2_session *               f_h2_session = nullptr;
+    http_response::map_t            f_h2_responses = http_response::map_t();
 
     buffer_t                        f_input = buffer_t();
     ssize_t                         f_input_position = 0;

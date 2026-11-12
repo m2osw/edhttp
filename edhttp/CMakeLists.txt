@@ -20,6 +20,9 @@ AtomicNames("names.an")
 
 project(edhttp)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(NGHTTP2 REQUIRED IMPORTED_TARGET libnghttp2)
+
 # Put the version in the header file
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/version.h.in
@@ -39,13 +42,13 @@ add_library(${PROJECT_NAME} SHARED
     mime_type.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/names.cpp
     quoted_printable.cpp
-    string_part.cpp
     token.cpp
     uri.cpp
     utils.cpp
     validator_uri.cpp
     version.cpp
-    weighted_http_string.cpp
+    parametrized_value.cpp
+    parametrized_value_list.cpp
 
     compression/archiver.cpp
     compression/archiver_archive.cpp
@@ -93,6 +96,7 @@ target_link_libraries(${PROJECT_NAME}
         ${MAGIC_LIBRARIES}
         ${MAGPIE_LIBRARIES}
         ${SNAPLOGGER_LIBRARIES}
+        PkgConfig::NGHTTP2
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

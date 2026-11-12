@@ -23,9 +23,9 @@
 
 #include    "edhttp/exception.h"
 #include    "edhttp/names.h"
+#include    "edhttp/http_response.h"
 #include    "edhttp/token.h"
 #include    "edhttp/uri.h"
-#include    "edhttp/version.h"
 
 
 // snaplogger
@@ -70,6 +70,12 @@ namespace edhttp
 ed::mode_t http_request::get_mode() const
 {
     return f_mode;
+}
+
+
+uri const & http_request::get_uri() const
+{
+    return f_uri;
 }
 
 
@@ -208,12 +214,6 @@ std::string http_request::get_agent_name() const
 //}
 
 
-http_protocol_t http_request::get_protocol() const
-{
-    return f_protocol;
-}
-
-
 std::string http_request::get_method() const
 {
     return f_method;
@@ -240,9 +240,15 @@ std::string http_request::get_header(std::string const & name) const
 {
     if(f_headers.find(name) == f_headers.end())
     {
-        return "";
+        return std::string();
     }
     return f_headers.at(name);
+}
+
+
+header_t const & http_request::get_headers() const
+{
+    return f_headers;
 }
 
 
@@ -343,7 +349,10 @@ std::string http_request::get_request(bool keep_alive) const
         // make sure we do not output the following fields which are
         // managed by our code instead:
         //
+        //      Connection
         //      Content-Length
+        //      Content-Type
+        //      Host
         //
         std::string name(it->first);
         std::transform(name.begin(), name.end(), name.begin(), ::tolower);
@@ -363,6 +372,8 @@ std::string http_request::get_request(bool keep_alive) const
         }
     }
 
+    // end the list of headers with the fields we control:
+
     // forcing the type? (generally doing so with POSTs)
     //
     if(!content_type.empty())
@@ -379,16 +390,16 @@ std::string http_request::get_request(bool keep_alive) const
             << g_name_edhttp_field_user_agent
             << ": "
             << f_agent_name
-            << "/" EDHTTP_VERSION_STRING "\r\n";
+            << "\r\n";
     }
 
-    // force the connection valid to what the programmer asked (keep-alive by
-    // default though)
+    // force the Connection header to what the programmer asked
     //
     // WARNING: according to HTTP/1.1, servers only expect "close" and not
     //          "keep-alive"; however, it looks like many implementations
     //          understand both (there is also an "upgrade" which we do not
     //          support)
+    //
     request
         << g_name_edhttp_field_connection
         << ": "
@@ -396,9 +407,8 @@ std::string http_request::get_request(bool keep_alive) const
                        : g_name_edhttp_param_close)
         << "\r\n";
 
-    // end the list with the fields we control:
-    //
     // Content-Length is the size of the body
+    //
     request
         << g_name_edhttp_field_content_length
         << ": "
@@ -406,6 +416,7 @@ std::string http_request::get_request(bool keep_alive) const
         << "\r\n\r\n";
 
     // TBD: will this work if 'body' includes a '\0'?
+    //
     request << body;
 
     return request.str();
@@ -534,18 +545,15 @@ void http_request::set_port(int port)
 
 void http_request::set_agent_name(std::string const & agent_name)
 {
+    // we expect a possibly full agent string with versions, etc.
+    // the very first word must be a valid HTTP token
+    //
     if(!is_token(agent_name))
     {
         throw expected_token("the User-Agent name must be a valid HTTP token.");
     }
 
     f_agent_name = agent_name;
-}
-
-
-void http_request::set_protocol(http_protocol_t protocol)
-{
-    f_protocol = protocol;
 }
 
 
@@ -564,15 +572,56 @@ void http_request::set_path(std::string const & path)
 }
 
 
-void http_request::set_header(std::string const & name, std::string const & value)
+/** \brief Set a header.
+ *
+ * This function sets the header \p name to \p value.
+ *
+ * The \p name must be a valid HTTP token. See is_token() for details.
+ *
+ * The function force the name to lowercase. This way, "Content-Type"
+ * and "content-type" get saved as the same field. The lowercase characters
+ * are used to send the header to the server. You may want to use the
+ * names instead of entering your own string. These are already lowercase
+ * and you avoid potential misspelling.
+ *
+ * \note
+ * Setting a header to the empty string (\p value set to std::string())
+ * actually removes that header from the list.
+ *
+ * \note
+ * Whether you set certain headers or not, the library may still send
+ * them with a default value (i.e. User-Agent is sent with "edhttp/<version>"
+ * if you do not define your own agent).
+ *
+ * Some headers are not defined using this function. For example, cookies
+ * are defined in a different way, especially because they require one
+ * header per cookie (`Set-Cookie: <name>=<value>; ...`).
+ *
+ * \param[in] name  The name of the header to set.
+ * \param[in] value  The value of the header.
+ */
+void http_request::set_header(std::string name, std::string const & value)
 {
-    // TODO: verify that the header name is compatible/valid
     // TODO: for known names, verify that the value is compatible/valid
     // TODO: verify the value in various other ways
+
+    for(auto & c : name)
+    {
+        if(c >= 'A' && c <= 'Z')
+        {
+            c |= 0x20; // make lowercase
+        }
+    }
+    if(!is_token(name))
+    {
+        throw expected_token("the name of an HTTP header must be a valid HTTP token.");
+    }
+
     if(value.empty())
     {
-        // remove headers if defined
-        auto h(f_headers.find(value));
+        // remove header if defined
+        //
+        auto h(f_headers.find(name));
         if(h != f_headers.end())
         {
             f_headers.erase(h);
@@ -580,7 +629,8 @@ void http_request::set_header(std::string const & name, std::string const & valu
     }
     else
     {
-        // add header, overwrite if already defined
+        // save header value
+        //
         f_headers[name] = value;
     }
 }
@@ -653,7 +703,7 @@ void http_request::set_body(std::string const & body)
  *
  * \return An identifier which can be used to remove the callback later.
  */
-http_response::callback_manager_t::callback_id_t http_request::add_response_callback(http_response::callback_t f)
+http_request::callback_manager_t::callback_id_t http_request::add_response_callback(callback_t f)
 {
     return f_response_callbacks.add_callback(f);
 }
@@ -671,7 +721,7 @@ http_response::callback_manager_t::callback_id_t http_request::add_response_call
  *
  * \sa add_response_callback()
  */
-bool http_request::remove_response_callback(http_response::callback_manager_t::callback_id_t id)
+bool http_request::remove_response_callback(callback_manager_t::callback_id_t id)
 {
     return f_response_callbacks.remove_callback(id);
 }

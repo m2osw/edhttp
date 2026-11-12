@@ -94,6 +94,12 @@ bool is_valid_field_value(char const * value, std::size_t length)
 
 
 
+std::shared_ptr<http_request> http_response::get_request() const
+{
+    return f_request;
+}
+
+
 /** \brief Retrieve the entire original header.
  *
  * This function returns the original header as it was read from the source.
@@ -162,21 +168,44 @@ std::string http_response::get_header(token const & name) const
 /** \brief Return the body of the response.
  *
  * Assuming that you used the basic HTTP setup without streaming capability,
- * this is the full body from the server as a string. Note that the string
- * can be composed of binary data.
+ * this is the full body from the server as a buffer of bytes.
  *
  * \note
- * If possible, you should try to use the string reference as to avoid
+ * If possible, you should try to use the buffer_t reference as to avoid
  * a copy of the body which could be really large.
  *
  * \todo
  * Implement versions that convert the data to as2js JSON, basic XML, etc.
  *
- * \return A string with the response body.
+ * \return A buffer with the response body.
  */
-std::string const & http_response::get_response() const
+buffer_t const & http_response::get_response() const
 {
     return f_response;
+}
+
+
+/** \brief Retrieve the response as a string.
+ *
+ * This is similar to the get_response() function above, except that it
+ * gets converted into a string. Note that means it returns a copy of
+ * the data. So it is better to use the get_response() reference if you
+ * can.
+ *
+ * \todo
+ * Look at using a string_view instead.
+ *
+ * \return A string with the response body.
+ */
+std::string http_response::get_response_as_string() const
+{
+    return std::string(reinterpret_cast<char const *>(f_response.data()), f_response.size());
+}
+
+
+void http_response::set_request(std::shared_ptr<http_request> request)
+{
+    f_request = request;
 }
 
 
@@ -348,9 +377,16 @@ void http_response::add_cookie(http_cookie const & cookie)
  *
  * \sa append_response()
  */
-void http_response::set_response(std::string const & response)
+void http_response::set_response(buffer_t const & response)
 {
     f_response = response;
+}
+
+
+void http_response::set_response(std::string const & response)
+{
+    f_response.resize(response.length());
+    std::copy(response.begin(), response.end(), f_response.begin());
 }
 
 
@@ -363,6 +399,12 @@ void http_response::set_response(std::string const & response)
  *
  * \sa set_response()
  */
+void http_response::append_response(buffer_t const & chunk)
+{
+    f_response.insert(f_response.end(), chunk.begin(), chunk.end());
+}
+
+
 void http_response::append_response(std::string const & chunk)
 {
     f_response.insert(f_response.end(), chunk.begin(), chunk.end());
@@ -445,8 +487,8 @@ bool http_response::parse_status_line(std::string const & status_line)
     || (status_line[7] != '0' && status_line[7] != '1')
     || status_line[8] != ' '
     || status_line[9] < '1' || status_line[9] > '5'
-    || status_line[10] < '0' && status_line[10] > '9'
-    || status_line[11] < '0' && status_line[11] > '9'
+    || status_line[10] < '0' || status_line[10] > '9'
+    || status_line[11] < '0' || status_line[11] > '9'
     || status_line[12] != ' ')
     {
         return false;
@@ -481,7 +523,7 @@ bool http_response::parse_status_line(std::string const & status_line)
     if(f_reason_phrase.empty())
     {
         char const * reason_phrase(get_reason_phrase_by_code(f_response_code));
-        if(reason_phrase != 0)
+        if(reason_phrase != nullptr)
         {
             f_reason_phrase = reason_phrase;
         }

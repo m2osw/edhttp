@@ -128,15 +128,27 @@ void http_client_connection::set_keep_alive(bool keep_alive)
 }
 
 
+allowed_http_protocol_t http_client_connection::get_allowed_http_protocols() const
+{
+    return f_impl->get_allowed_http_protocols();
+}
+
+
+void http_client_connection::set_allowed_http_protocols(allowed_http_protocol_t allowed)
+{
+    f_impl->set_allowed_http_protocols(allowed);
+}
+
+
 delay_t http_client_connection::get_http_connection_timeout() const
 {
-    return f_http_connection_timeout;
+    return f_impl->get_http_connection_timeout();
 }
 
 
 void http_client_connection::set_http_connection_timeout(delay_t timeout)
 {
-    f_http_connection_timeout = timeout;
+    f_impl->set_http_connection_timeout(timeout);
 }
 
 
@@ -220,6 +232,24 @@ void http_client_connection::set_maximum_header_size(std::size_t max)
 void http_client_connection::send_request(http_request::pointer_t request)
 {
     f_impl->send_request(request);
+}
+
+
+void http_client_connection::process_response(http_response::pointer_t response)
+{
+    snapdev::NOT_USED(response);
+}
+
+
+void http_client_connection::process_connected(ed::connection::pointer_t c)
+{
+    snapdev::NOT_USED(c);
+}
+
+
+void http_client_connection::process_connection_failed(ed::connection::pointer_t c)
+{
+    snapdev::NOT_USED(c);
 }
 
 

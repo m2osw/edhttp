@@ -337,6 +337,7 @@ std::string quoted_printable_decode(std::string const & input)
             {
                 // all equal must be followed by a newline (taken care
                 // off already) or a 2 hex digits
+                //
                 c = get_byte();
                 int const p(from_hex(c));
                 if(p == -1)

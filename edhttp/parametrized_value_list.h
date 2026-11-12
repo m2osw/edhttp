@@ -19,7 +19,7 @@
 
 // self
 //
-#include    <edhttp/string_part.h>
+#include    <edhttp/parametrized_value.h>
 
 
 
@@ -29,24 +29,33 @@ namespace edhttp
 
 
 // for HTTP_ACCEPT_ENCODING, HTTP_ACCEPT_LANGUAGE, HTTP_ACCEPT
-class weighted_http_string
+class parametrized_value_list
 {
 public:
-                            weighted_http_string(std::string const & str = std::string());
+                            parametrized_value_list(
+                                  std::string const & str = std::string()
+                                , bool immediate_value = false);
 
-    bool                    parse(std::string const & str, bool reset = false);
-    std::string const &     get_string() const { return f_str; }
-    string_part::level_t    get_level(std::string const & name);
+    bool                    parse(
+                                  std::string const & str
+                                , bool immediate_value = false
+                                , bool reset = false);
+    std::string const &     get_string() const { return f_original; }
+    parametrized_value::level_t
+                            get_level(std::string const & name);
     void                    sort_by_level();
-    string_part::vector_t & get_parts() { return f_parts; }
-    string_part::vector_t const &
+    parametrized_value *    get_part(std::string const & name) const;
+    parametrized_value::vector_t &
+                            get_parts() { return f_parts; }
+    parametrized_value::vector_t const &
                             get_parts() const { return f_parts; }
     std::string             to_string() const;
     std::string const &     error_messages() const { return f_error_messages; }
 
 private:
-    std::string             f_str = std::string();
-    string_part::vector_t   f_parts = string_part::vector_t(); // do NOT use a map, we want to keep them in order
+    std::string             f_original = std::string();
+    parametrized_value::vector_t
+                            f_parts = parametrized_value::vector_t(); // do NOT use a map, we want to keep them in order
     std::string             f_error_messages = std::string();
 };
 
