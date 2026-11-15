@@ -12,6 +12,9 @@
     and no direct I/O of its own) named nghttp2
 * Create the HTTP client & server as separate headers/implementations.
 * Get a better grip on the address ranges.
+* Add support for punycode encoding/decoding
+  - This offers support for international domain names
+  - We need to finish up our Unicode implementation in libutf8
 * Add tests for everything to be clearly verified.
 * Added a normalization service which can load a file and normalize "anything"
   - we often want to normalize things such as the user agent, this tool could
