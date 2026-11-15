@@ -91,7 +91,7 @@ namespace edhttp
  * \sa set_option()
  * \sa set_query_string()
  * \sa set_query_option()
- * \sa set_anchor()
+ * \sa set_fragment()
  */
 uri::uri()
 {
@@ -168,9 +168,19 @@ uri::~uri()
  * If the function returns false, you can retrieve an error message
  * with the get_last_error_message() function.
  *
+ * \code
+ * start: scheme "://" authority path query-string fragment
+ * \endcode
+ *
  * \todo
- * A the moment, the RFC is not followed. We should verify the characters
- * of each element are considered legal for that location.
+ * A the moment, the RFC is not followed 100%. We should verify the
+ * characters of each element are considered legal for that location.
+ * A URI has 5 sections: scheme, authority, path, query string, and
+ * fragment. The authority is itself broken up in three parts: userinfo,
+ * domain, port. Each one of these sections and sub-sections have a
+ * different definition of what is allowed and what isn't. The easiest,
+ * I think, will be to retrieve all the sections, then check them,
+ * then save everything is all the tests were positive.
  *
  * \sa
  * https://datatracker.ietf.org/doc/html/rfc3986#appendix-A
@@ -318,7 +328,7 @@ bool uri::set_uri(
                     }
                     else if(colon2 != nullptr)
                     {
-                        f_last_error_message = "more than one ':' in the domain name segment (after the '@') [1].";
+                        f_last_error_message = "more than one ':' in the domain name part (after the '@') [1].";
                         return false;
                     }
                     else
@@ -332,7 +342,7 @@ bool uri::set_uri(
                     {
                         if(colon2 != nullptr)
                         {
-                            f_last_error_message = "more than one ':' in the domain name segment (after the '@') [2].";
+                            f_last_error_message = "more than one ':' in the domain name part (after the '@') [2].";
                             return false;
                         }
                         colon2 = u;
@@ -394,7 +404,7 @@ bool uri::set_uri(
             //
             if(p != u)
             {
-                int parsed_port(0);
+                port = 0;
                 for(; p < u; ++p)
                 {
                     char const d(*p);
@@ -407,18 +417,14 @@ bool uri::set_uri(
                         f_last_error_message += "' was unexpected).";
                         return false;
                     }
-                    parsed_port = parsed_port * 10 + d - '0';
-                    if(parsed_port > 65535)
+                    port = port * 10 + d - '0';
+                    if(port > 65535)
                     {
                         // port overflow
                         //
                         f_last_error_message = "port must be between 0 and 65536.";
                         return false;
                     }
-                }
-                if(parsed_port != 0)
-                {
-                    port = parsed_port;
                 }
             }
         }
@@ -690,18 +696,19 @@ std::cerr << "--- u path + [" << u << "]\n";
         }
     }
 
-    // finally check for an anchor
-    // (note that browsers do not send us the anchor data, however, URIs
-    // defined on the server side can very well include such.)
+    // finally check for a fragment
     //
-    std::string uri_anchor;
+    // NOTE: browsers do not send servers the fragment data,however, 
+    //       URIs defined on the server side can very well include such.
+    //
+    std::string uri_fragment;
     if(*u == '#')
     {
         ++u;
         if(*u != '\0')
         {
-            uri_anchor = urldecode(u, DECODE_FLAG_RELAX, &f_last_error_message);
-            if(uri_anchor.empty())
+            uri_fragment = urldecode(u, DECODE_FLAG_RELAX, &f_last_error_message);
+            if(uri_fragment.empty())
             {
                 return false; // LCOV_EXCL_LINE
             }
@@ -744,7 +751,7 @@ std::cerr << "--- u path + [" << u << "]\n";
     f_addresses.clear();
 
     f_query_strings = query_strings;
-    f_anchor = uri_anchor;
+    f_fragment = uri_fragment;
 
     return true;
 }
@@ -896,12 +903,12 @@ std::string uri::get_uri(std::string const & redact) const
         result += q;
     }
 
-    // anchor
+    // fragment
     //
-    if(!f_anchor.empty())
+    if(!f_fragment.empty())
     {
         result += '#';
-        result += urlencode(f_anchor, "!/~="); // TODO: nearly all characters are allowed in anchors
+        result += urlencode(f_fragment, "!/~="); // TODO: nearly all characters are allowed in fragments
     }
 
     return result;
@@ -911,7 +918,7 @@ std::string uri::get_uri(std::string const & redact) const
 /** \brief Retrieve the URI of the website.
  *
  * This function returns the URI of the website, without any path,
- * query string options, anchor. The port is included only if it
+ * query string options, fragment. The port is included only if it
  * does not correspond to the scheme and the \p include_port flag
  * is set to true.
  *
@@ -996,8 +1003,8 @@ void uri::clear_last_error_message()
  *
  * The supported parts are:
  *
- * \li anchor -- The anchor
  * \li domain -- The domain name
+ * \li fragment -- The fragment
  * \li full-domain -- The full domain: with sub-domains, domain, and TLD
  * \li is-unix -- whether the address represents a Unix or Internet socket
  * \li option -- The option number \p part
@@ -1030,14 +1037,6 @@ std::string uri::get_part(std::string const & name, int part) const
     }
     switch(name[0])
     {
-    case 'A':
-    case 'a':
-        if(snapdev::compare_upper_exact_switch_string<"ANCHOR">(name))
-        {
-            return f_anchor;
-        }
-        break;
-
     case 'D':
     case 'd':
         if(snapdev::compare_upper_exact_switch_string<"DOMAIN">(name))
@@ -1048,6 +1047,10 @@ std::string uri::get_part(std::string const & name, int part) const
 
     case 'F':
     case 'f':
+        if(snapdev::compare_upper_exact_switch_string<"FRAGMENT">(name))
+        {
+            return f_fragment;
+        }
         if(snapdev::compare_upper_exact_switch_string<"FULL-DOMAIN">(name))
         {
             return full_domain();
@@ -1529,7 +1532,7 @@ bool uri::process_domain(
  * the doman name and the tld, then this exception is raised.
  *
  * \param[in] full_domain_name  A full domain name, without scheme, path,
- *                              query string or anchor.
+ *                              query string or fragment.
  */
 void uri::set_domain(std::string const & full_domain_name)
 {
@@ -2511,22 +2514,22 @@ uri::uri_options_t const & uri::query_string_list() const
 }
 
 
-/** \brief Define the anchor for this URI.
+/** \brief Define the fragment for this URI.
  *
- * This function is used to setup the anchor used in this URI. Any valid
+ * This function is used to setup the fragment used in this URI. Any valid
  * character is allowed. Anything over 0x80 must be valid UTF-8.
  *
- * Any character is allowed in anchors. However, most need to be encoded.
- * When you set the anchor, the characters are not expected to be encoded
+ * Any character is allowed in fragments. However, most need to be encoded.
+ * When you set the fragment, the characters are not expected to be encoded
  * yet.
  *
- * \param[in] uri_anchor  The new value for the anchor.
+ * \param[in] uri_fragment  The new value for the fragment.
  *
- * \sa anchor()
+ * \sa fragment()
  */
-void uri::set_anchor(std::string const & uri_anchor)
+void uri::set_fragment(std::string const & uri_fragment)
 {
-    for(libutf8::utf8_iterator it(uri_anchor); it != uri_anchor.end(); ++it)
+    for(libutf8::utf8_iterator it(uri_fragment); it != uri_fragment.end(); ++it)
     {
         char32_t const c(*it);
         if(c == libutf8::NOT_A_CHARACTER
@@ -2535,23 +2538,23 @@ void uri::set_anchor(std::string const & uri_anchor)
         || (c >= 0x80 && c <= 0xAF))
         {
             throw invalid_parameter(
-                  "anchor strings cannot include a control character.");
+                  "fragment strings cannot include a control character.");
         }
     }
-    f_anchor = uri_anchor;
+    f_fragment = uri_fragment;
 }
 
 
-/** \brief Retrieve the current anchor.
+/** \brief Retrieve the current fragment.
  *
- * This function returns a copy of the current anchor. The empty string
- * represents the fact that the anchor is not defined.
+ * This function returns a copy of the current fragment. The empty string
+ * represents the fact that the fragment is not defined.
  *
- * \return A constant reference to the anchor.
+ * \return A constant reference to the fragment.
  */
-std::string const & uri::anchor() const
+std::string const & uri::fragment() const
 {
-    return f_anchor;
+    return f_fragment;
 }
 
 
@@ -2670,7 +2673,7 @@ bool uri::operator >= (uri const & rhs) const
  * Note that we do not encode underscores.
  *
  * The \p accepted parameter can be used to avoid converting certain
- * characters (such as / in an anchor and ~ in a path).
+ * characters (such as / in an fragment and ~ in a path).
  *
  * \param[in] in  URI to encode.
  * \param[in] accepted  Extra characters accepted and not encoded. This

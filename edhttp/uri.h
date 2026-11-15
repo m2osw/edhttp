@@ -163,10 +163,10 @@ public:
     std::string                 query_option(int part, std::string & name) const;
     uri_options_t const &       query_string_list() const;
 
-    // anchor handling
+    // fragment handling
     //
-    void                        set_anchor(std::string const & uri_anchor);
-    std::string const &         anchor() const;
+    void                        set_fragment(std::string const & uri_fragment);
+    std::string const &         fragment() const;
 
     // operators
     //
@@ -200,7 +200,7 @@ private:
     bool                        f_allow_encoded_slashes = false;
     uri_options_t               f_options = uri_options_t();
     uri_options_t               f_query_strings = uri_options_t();
-    std::string                 f_anchor = std::string();
+    std::string                 f_fragment = std::string();
     mutable snapdev::timespec_ex
                                 f_valid_addresses = snapdev::timespec_ex();
     mutable addr::addr::vector_t

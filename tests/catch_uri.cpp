@@ -108,17 +108,17 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("uri: verify anchor")
+    CATCH_START_SECTION("uri: verify fragment")
     {
-        edhttp::uri u("http://snapwebsites.org:8585/check/anchor#this-anchor");
+        edhttp::uri u("http://snapwebsites.org:8585/check/fragment#this-fragment");
 
         CATCH_REQUIRE(u.domain() == "snapwebsites");
         CATCH_REQUIRE(u.top_level_domain() == ".org");
         CATCH_REQUIRE(u.get_port() == 8585);
-        CATCH_REQUIRE(u.path() == "check/anchor");
-        CATCH_REQUIRE(u.anchor() == "this-anchor");
-        u.set_anchor("change-it");
-        CATCH_REQUIRE(u.anchor() == "change-it");
+        CATCH_REQUIRE(u.path() == "check/fragment");
+        CATCH_REQUIRE(u.fragment() == "this-fragment");
+        u.set_fragment("change-it");
+        CATCH_REQUIRE(u.fragment() == "change-it");
     }
     CATCH_END_SECTION()
 
@@ -130,7 +130,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
         CATCH_REQUIRE(u.top_level_domain() == ".org");
         CATCH_REQUIRE(u.get_port() == 8484);
         CATCH_REQUIRE(u.path().empty());
-        CATCH_REQUIRE(u.anchor().empty());
+        CATCH_REQUIRE(u.fragment().empty());
         CATCH_REQUIRE(u.query_option_count() == 3);
         auto const & list(u.query_string_list());
         CATCH_REQUIRE(list.size() == 3);
@@ -373,7 +373,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
             bool            f_is_port_secure = false;                       // whether the port is considered secure
             bool            f_is_unix = false;                              // whether the input URI is a Unix path
             char const *    f_query_string = nullptr;                       // the query string
-            char const *    f_anchor = nullptr;                             // the string after the '#"
+            char const *    f_fragment = nullptr;                           // the string after the '#"
         };
 
         uri_test uris[] =
@@ -400,7 +400,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = true,
                 .f_is_unix                            = false,
                 .f_query_string                       = "other_var=more%20data&var=value",
-                .f_anchor                             = "hello",
+                .f_fragment                           = "hello",
             },
             {
                 .f_original_uri                       = "https://me:p1@test.this.domain.net?no=path&other_var=more%20data#hello=world",
@@ -424,7 +424,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = true,
                 .f_is_unix                            = false,
                 .f_query_string                       = "no=path&other_var=more%20data",
-                .f_anchor                             = "hello=world",
+                .f_fragment                           = "hello=world",
             },
             {
                 .f_original_uri                       = "http://you:p2%5D@sub.test.this.domain.cloud///%25with///a///path?var=value&other_var=more%20data#!/extra/path",
@@ -448,7 +448,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = false,
                 .f_is_unix                            = false,
                 .f_query_string                       = "other_var=more%20data&var=value",
-                .f_anchor                             = "!/extra/path",
+                .f_fragment                           = "!/extra/path",
             },
             {
                 .f_original_uri                       = "http://you:p2%5D@sub.test.this.domain.cloud///%25with///a///path?var=value==this&other_var=more%20data#!~alexis/extra/path",
@@ -472,7 +472,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = false,
                 .f_is_unix                            = false,
                 .f_query_string                       = "other_var=more%20data&var=value%3D%3Dthis",
-                .f_anchor                             = "!~alexis/extra/path",
+                .f_fragment                           = "!~alexis/extra/path",
             },
             {
                 .f_original_uri                       = "http://you:p2%5D@sub.test.this.domain.cloud///with///a///path?var=value&other_var=more%20data#!/special/path/%23%25%20",
@@ -496,7 +496,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = false,
                 .f_is_unix                            = false,
                 .f_query_string                       = "other_var=more%20data&var=value",
-                .f_anchor                             = "!/special/path/#% ",
+                .f_fragment                           = "!/special/path/#% ",
             },
             {
                 .f_original_uri                       = "ftp://you:p2%5B@sub.test.this.domain.cloud///with///a///path?var=value&other_var=more%20data#hello",
@@ -520,7 +520,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = false,
                 .f_is_unix                            = false,
                 .f_query_string                       = "other_var=more%20data&var=value",
-                .f_anchor                             = "hello",
+                .f_fragment                           = "hello",
             },
             {
                 .f_original_uri                       = "ssh://agent:secret@console.example.website///packages?PATH=/usr/bin",
@@ -544,7 +544,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = true,
                 .f_is_unix                            = false,
                 .f_query_string                       = "PATH=%2Fusr%2Fbin",
-                .f_anchor                             = "",
+                .f_fragment                           = "",
             },
             {
                 .f_original_uri                       = "telnet://user:password1@shell.example.org///packages?PATH=/usr/bin%3A/usr/sbin&=no-name",
@@ -568,7 +568,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = false,
                 .f_is_unix                            = false,
                 .f_query_string                       = "%2A=no-name&PATH=%2Fusr%2Fbin%3A%2Fusr%2Fsbin",
-                .f_anchor                             = "",
+                .f_fragment                           = "",
             },
             {
                 .f_original_uri                       = "smtp://user:password1@mail.abc123.info///var/mail-boxes/user?PATH=/usr/bin%3A/usr/sbin#latest",
@@ -592,7 +592,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = false,
                 .f_is_unix                            = false,
                 .f_query_string                       = "PATH=%2Fusr%2Fbin%3A%2Fusr%2Fsbin",
-                .f_anchor                             = "latest",
+                .f_fragment                           = "latest",
             },
             {
                 .f_original_uri                       = "gopher://gofer:yes%3Ano@gopher.wall.alexis.museum:///gopher",
@@ -616,7 +616,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = false,
                 .f_is_unix                            = false,
                 .f_query_string                       = "",
-                .f_anchor                             = "",
+                .f_fragment                           = "",
             },
             {
                 .f_original_uri                       = "time://realtime.atomic.cl:/utc?leap-seconds=separate",
@@ -640,7 +640,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = false,
                 .f_is_unix                            = false,
                 .f_query_string                       = "leap-seconds=separate",
-                .f_anchor                             = "",
+                .f_fragment                           = "",
             },
             {
                 .f_original_uri                       = "snapwebsites://@parlement%2Eco%2euk/////folder/electric/bill?line%5B3%5D=129.07#quantity",
@@ -664,7 +664,7 @@ CATCH_TEST_CASE("uri", "[uri][domain]")
                 .f_is_port_secure                     = false,
                 .f_is_unix                            = false,
                 .f_query_string                       = "line%5B3%5D=129.07",
-                .f_anchor                             = "quantity",
+                .f_fragment                           = "quantity",
             },
         };
 
@@ -715,7 +715,7 @@ std::cerr << "--- working on [" << t.f_original_uri << "]\n";
             CATCH_REQUIRE(u.is_unix() == t.f_is_unix);
             CATCH_REQUIRE(u.get_str_port() == std::to_string(t.f_port));
             CATCH_REQUIRE(u.query_string() == t.f_query_string);
-            CATCH_REQUIRE(u.anchor() == t.f_anchor);
+            CATCH_REQUIRE(u.fragment() == t.f_fragment);
 
             // sub-domains
             //
@@ -797,8 +797,8 @@ std::cerr << "--- working on [" << t.f_original_uri << "]\n";
 
             // try again with the get_part() function
             //
-            CATCH_REQUIRE(u.get_part("anchor") == t.f_anchor);
             CATCH_REQUIRE(u.get_part("domain") == t.f_domain);
+            CATCH_REQUIRE(u.get_part("fragment") == t.f_fragment);
             CATCH_REQUIRE(u.get_part("full-domain") == t.f_full_domain);
             CATCH_REQUIRE(u.get_part("is-port-secure") == (t.f_is_port_secure ? "secure" : "insecure"));
             CATCH_REQUIRE(u.get_part("is-scheme-secure") == (t.f_is_secure_scheme ? "secure" : "insecure"));
@@ -884,7 +884,7 @@ std::cerr << "--- working on [" << t.f_original_uri << "]\n";
             },
             {
                 .f_uri           = "valid-scheme://@m2osw.com:80:80/",
-                .f_error_message = "more than one ':' in the domain name segment (after the '@') [1].",
+                .f_error_message = "more than one ':' in the domain name part (after the '@') [1].",
                 .f_accept_path   = false,
                 .f_accept_ip     = false,
             },
@@ -908,7 +908,7 @@ std::cerr << "--- working on [" << t.f_original_uri << "]\n";
             },
             {
                 .f_uri           = "C-++://top:secret:password@m2osw.com:80:80/", // username="top", password="secret:password"
-                .f_error_message = "more than one ':' in the domain name segment (after the '@') [2].",
+                .f_error_message = "more than one ':' in the domain name part (after the '@') [2].",
                 .f_accept_path   = false,
                 .f_accept_ip     = false,
             },
@@ -920,7 +920,7 @@ std::cerr << "--- working on [" << t.f_original_uri << "]\n";
             },
             {
                 .f_uri           = "https://my:password@m2osw.com:80:80/",
-                .f_error_message = "more than one ':' in the domain name segment (after the '@') [2].",
+                .f_error_message = "more than one ':' in the domain name part (after the '@') [2].",
                 .f_accept_path   = false,
                 .f_accept_ip     = false,
             },
@@ -1620,11 +1620,11 @@ CATCH_TEST_CASE("uri_manual", "[uri]")
         u.add_query_option("c", "extra3");
         CATCH_REQUIRE(u.query_option("c") == "val3,extra3");
 
-        // anchor
+        // fragment
         //
-        std::string anchor(SNAP_CATCH2_NAMESPACE::random_string(1, 32, SNAP_CATCH2_NAMESPACE::character_t::CHARACTER_ASCII));
-        u.set_anchor(anchor);
-        CATCH_REQUIRE(u.anchor() == anchor);
+        std::string fragment(SNAP_CATCH2_NAMESPACE::random_string(1, 32, SNAP_CATCH2_NAMESPACE::character_t::CHARACTER_ASCII));
+        u.set_fragment(fragment);
+        CATCH_REQUIRE(u.fragment() == fragment);
 
         // result
         //
@@ -1641,7 +1641,7 @@ CATCH_TEST_CASE("uri_manual", "[uri]")
         expected_uri += snapdev::join_strings(segments, "/");
         expected_uri += "?a=val1,extra1&b=val2,extra2&c=val3,extra3";
         expected_uri += "#";
-        expected_uri += edhttp::urlencode(anchor, "!/~=");
+        expected_uri += edhttp::urlencode(fragment, "!/~=");
         CATCH_REQUIRE_LONG_STRING(expected_uri, u.get_uri());
     }
     CATCH_END_SECTION()
@@ -1781,15 +1781,15 @@ CATCH_TEST_CASE("uri_error", "[uri][domain][error]")
     }
     CATCH_END_SECTION()
 
-    CATCH_START_SECTION("uri_error: invalid anchor with a '#' character")
+    CATCH_START_SECTION("uri_error: invalid fragment with a '#' character")
     {
         edhttp::uri u;
 
         CATCH_REQUIRE_THROWS_MATCHES(
-                  u.set_anchor("anchor/cannot/include/a/\x03/character")
+                  u.set_fragment("fragment/cannot/include/a/\x03/character")
                 , edhttp::invalid_parameter
                 , Catch::Matchers::ExceptionMessage(
-                          "edhttp_exception: anchor strings cannot include a control character."));
+                          "edhttp_exception: fragment strings cannot include a control character."));
     }
     CATCH_END_SECTION()
 
