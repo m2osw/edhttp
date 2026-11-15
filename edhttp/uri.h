@@ -51,6 +51,13 @@ namespace edhttp
 
 constexpr std::size_t const         MAXIMUM_SCHEME_LENGTH = 64;
 
+typedef std::uint32_t               decode_flag_t;
+
+constexpr decode_flag_t const       DECODE_FLAG_RELAX         = 0x0001;
+constexpr decode_flag_t const       DECODE_FLAG_ALLOW_BINARY  = 0x0002;
+constexpr decode_flag_t const       DECODE_FLAG_ALLOW_UTF8    = 0x0004;
+constexpr decode_flag_t const       DECODE_FLAG_PLUS_TO_SPACE = 0x0008;
+
 
 // Helper class to handle URIs
 // http://tools.ietf.org/html/rfc3986
@@ -63,7 +70,9 @@ public:
                                 uri_options_t;
 
                                 uri();
-                                uri(std::string const & uri, bool accept_path = false);
+                                uri(std::string const & uri
+                                  , bool accept_path = false
+                                  , bool allow_encoded_slashes = false);
                                 ~uri();
 
     // URI handling
@@ -122,6 +131,8 @@ public:
     // path handling
     //
     bool                        is_unix() const;
+    void                        set_allow_encoded_slashes(bool allow = true);
+    bool                        get_allow_encoded_slashes() const;
     void                        set_path(std::string uri_path);
     std::string                 path(bool encoded = true) const;
     int                         path_count() const;
@@ -186,6 +197,7 @@ private:
     std::string                 f_top_level_domain = std::string();
     advgetopt::string_list_t    f_sub_domains = advgetopt::string_list_t();
     advgetopt::string_list_t    f_path = advgetopt::string_list_t();
+    bool                        f_allow_encoded_slashes = false;
     uri_options_t               f_options = uri_options_t();
     uri_options_t               f_query_strings = uri_options_t();
     std::string                 f_anchor = std::string();
@@ -198,7 +210,7 @@ private:
 
 
 std::string         urlencode(std::string const & uri, char const * accepted = "");
-std::string         urldecode(std::string const & uri, bool relax = false);
+std::string         urldecode(std::string const & uri, decode_flag_t flags = 0, std::string * errmsg = nullptr);
 int                 scheme_to_port(std::string const & uri_scheme);
 bool                is_scheme_secure(std::string const & uri_scheme);
 bool                is_port_secure(int port);

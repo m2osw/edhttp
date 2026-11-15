@@ -29,7 +29,9 @@
 
 // snapdev
 //
+#include    <snapdev/compare_switch_string.h>
 #include    <snapdev/hexadecimal_string.h>
+#include    <snapdev/to_lower.h>
 
 
 // C++
@@ -51,6 +53,9 @@ namespace
 
 
 magpie::cache<std::string, magpie::empty_t>::pointer_t  g_accepted_protocols_cache = magpie::cache<std::string, magpie::empty_t>::pointer_t();
+
+
+std::set<std::string>                                   g_accepted_domains = std::set<std::string>();
 
 
 
@@ -116,6 +121,29 @@ bool accepted_protocol(std::string const & domain)
 }
 
 
+void add_accepted_domain(std::string const & domain)
+{
+    g_accepted_domains.insert(snapdev::to_lower(domain));
+}
+
+
+void remove_accepted_domain(std::string const & domain)
+{
+    g_accepted_domains.erase(snapdev::to_lower(domain));
+}
+
+
+bool is_accepted_domain(std::string const & domain)
+{
+    if(snapdev::compare_upper_exact_string<"LOCALHOST">(domain))
+    {
+        return true;
+    }
+
+    return g_accepted_domains.contains(snapdev::to_lower(domain));
+}
+
+
 /** \brief Many fields in the header may require decoding.
  *
  * This function decodes %XX characters from \p in and writes the
@@ -135,37 +163,37 @@ bool accepted_protocol(std::string const & domain)
  *
  * \return true if the decoding had no issue, false on errors.
  */
-bool decode_percents(std::string const & in, std::string & out)
-{
-    out.reserve(in.length());
-
-    for(char const * s(in.c_str()); *s != '\0'; ++s)
-    {
-        if(*s == '%')
-        {
-            if(!snapdev::is_hexdigit(s[1])
-            || !snapdev::is_hexdigit(s[2]))
-            {
-                return false;
-            }
-            char const c(snapdev::hexdigit_to_number(s[1]) * 16
-                       + snapdev::hexdigit_to_number(s[2]));
-            if((c < ' ' && c != '\t')
-            || c > '~')
-            {
-                return false;
-            }
-            out += c;
-            s += 2; // the '%' is skipped in the for() above
-        }
-        else
-        {
-            out += *s;
-        }
-    }
-
-    return true;
-}
+//bool decode_percents(std::string const & in, std::string & out)
+//{
+//    out.reserve(in.length());
+//
+//    for(char const * s(in.c_str()); *s != '\0'; ++s)
+//    {
+//        if(*s == '%')
+//        {
+//            if(!snapdev::is_hexdigit(s[1])
+//            || !snapdev::is_hexdigit(s[2]))
+//            {
+//                return false;
+//            }
+//            char const c(snapdev::hexdigit_to_number(s[1]) * 16
+//                       + snapdev::hexdigit_to_number(s[2]));
+//            if((c < ' ' && c != '\t')
+//            || c > '~')
+//            {
+//                return false;
+//            }
+//            out += c;
+//            s += 2; // the '%' is skipped in the for() above
+//        }
+//        else
+//        {
+//            out += *s;
+//        }
+//    }
+//
+//    return true;
+//}
 
 
 

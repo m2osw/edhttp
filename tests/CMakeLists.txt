@@ -43,11 +43,13 @@ if(SnapCatch2_FOUND)
             ${CMAKE_BINARY_DIR}
             ${PROJECT_SOURCE_DIR}
             ${SNAPCATCH2_INCLUDE_DIRS}
+            ${LIBADDR_INCLUDE_DIRS}
             ${LIBEXCEPT_INCLUDE_DIRS}
     )
 
     target_link_libraries(${PROJECT_NAME}
         edhttp
+        ${LIBADDR_LIBRARIES}
         ${SNAPCATCH2_LIBRARIES}
     )
 

@@ -40,7 +40,11 @@ typedef std::vector<std::uint8_t>       buffer_t;
 void                    accepted_protocol(std::string const & domain, magpie::duration_t ttl);
 bool                    accepted_protocol(std::string const & domain);
 
-bool                    decode_percents(std::string const & in, std::string & out);
+void                    add_accepted_domain(std::string const & domain);
+void                    remove_accepted_domain(std::string const & domain);
+bool                    is_accepted_domain(std::string const & domain);
+
+//bool                    decode_percents(std::string const & in, std::string & out);
 
 
 

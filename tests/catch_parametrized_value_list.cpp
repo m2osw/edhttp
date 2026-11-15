@@ -25,7 +25,8 @@
 
 // header begin tested
 //
-#include    "edhttp/parametrized_value_list.h"
+#include    <edhttp/parametrized_value_list.h>
+
 
 
 // self
@@ -35,8 +36,9 @@
 
 // edhttp
 //
-#include    "edhttp/exception.h"
-#include    "edhttp/utils.h"
+#include    <edhttp/exception.h>
+#include    <edhttp/uri.h>
+#include    <edhttp/utils.h>
 
 
 
@@ -1041,8 +1043,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
         edhttp::parametrized_value * p(alt_svc.get_part("%5Bh3%5D"));
         CATCH_REQUIRE(p != nullptr);
         CATCH_REQUIRE(p->get_name() == "%5Bh3%5D");
-        std::string decoded_name;
-        CATCH_REQUIRE(edhttp::decode_percents(p->get_name(), decoded_name)); // for an alt-svc, decoding %XX is expected
+        std::string decoded_name(edhttp::urldecode(p->get_name())); // for an alt-svc, decoding %XX is expected
         CATCH_REQUIRE(decoded_name == "[h3]");
         CATCH_REQUIRE(p->get_value() == ":443");
         CATCH_REQUIRE(p->get_parameter("ma") == "86400");
