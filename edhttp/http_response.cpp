@@ -51,7 +51,7 @@
 
 // C++
 //
-//#include    <algorithm>
+#include    <algorithm>
 //#include    <iostream>
 //#include    <sstream>
 
@@ -161,7 +161,37 @@ bool http_response::has_header(token const & name) const
 
 std::string http_response::get_header(token const & name) const
 {
-    return f_header.at(name);
+    auto const it(f_header.find(name));
+    if(it == f_header.end())
+    {
+        return std::string();
+    }
+    return it->second;
+}
+
+
+http_cookie const * http_response::get_cookie(std::string const & name) const
+{
+    auto it(std::find_if(
+          f_cookies.begin()
+        , f_cookies.end()
+        , [&name](http_cookie const & c)
+        {
+            return c.get_name() == name;
+        }));
+
+    if(it == f_cookies.end())
+    {
+        return nullptr;
+    }
+
+    return &*it;
+}
+
+
+http_cookie::vector_t const & http_response::get_cookies() const
+{
+    return f_cookies;
 }
 
 

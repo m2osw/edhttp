@@ -46,6 +46,8 @@ bool                    is_accepted_domain(std::string const & domain);
 
 //bool                    decode_percents(std::string const & in, std::string & out);
 
+bool                    has_controls(std::string const & domain, bool htab_allowed = false, bool utf8_allowed = false);
+
 
 
 } // namespace edhttp

@@ -54,7 +54,7 @@ void thread_signal_handler::process_read()
 {
     thread_done_signal::process_read();
 
-    f_parent->trigger_thread_done();
+    f_parent->thread_done();
 }
 
 

@@ -80,6 +80,8 @@ http_tcp_client_async_connection::http_tcp_client_async_connection(
     , f_runner(this, address, host, mode, allow_http2)
     , f_thread("asynchronous connection handler thread", &f_runner)
 {
+std::cerr << "--- created runner/thread to connect to " << address << "\n";
+    set_name("edhttp::detail::http_tcp_client_async_connection");
 }
 
 
@@ -97,6 +99,7 @@ bool http_tcp_client_async_connection::start()
     f_thread_done = std::make_shared<thread_signal_handler>(this);
     f_communicator->add_connection(f_thread_done);
 
+std::cerr << "--- start thread to connect to server\n";
     if(!f_thread.start())
     {
         f_communicator->remove_connection(f_thread_done);
@@ -124,6 +127,7 @@ bool http_tcp_client_async_connection::start()
  */
 void http_tcp_client_async_connection::trigger_thread_done()
 {
+std::cerr << "--- call thread_done()?\n";
     f_thread_done->thread_done();
 }
 
@@ -149,6 +153,7 @@ void http_tcp_client_async_connection::trigger_thread_done()
  */
 void http_tcp_client_async_connection::thread_done()
 {
+std::cerr << "--- thread_done() called...\n";
     // if we used the thread we have to remove the signal used
     // to know that the thread was done
     //
@@ -164,7 +169,9 @@ void http_tcp_client_async_connection::thread_done()
     // causes all sorts of other problems (especially, the thread
     // never gets joined)
     //
+std::cerr << "--- stop() thread...\n";
     f_thread.stop();
+std::cerr << "--- thread returned...\n";
 
     http_tcp_client_connection::pointer_t client(f_runner.release_client());
 
@@ -201,6 +208,7 @@ void http_tcp_client_async_connection::thread_done()
 
         // let the client know we are now connected
         //
+std::cerr << "--- calling process_connected() from http_tcp_client_async_connection.cpp\n";
         f_parent->process_connected(shared_from_this());
     }
 }

@@ -33,26 +33,28 @@ namespace edhttp
 constexpr time_t const                      COOKIE_MAXIMUM_TIMEOUT = 86400LL * 400LL;
 
 
+enum class http_cookie_type_t
+{
+    HTTP_COOKIE_TYPE_PERMANENT,
+    HTTP_COOKIE_TYPE_SESSION,
+    HTTP_COOKIE_TYPE_DELETE,
+};
+
+
+enum class http_same_site_t
+{
+    HTTP_SAME_SITE_UNKNOWN,
+    HTTP_SAME_SITE_DEFAULT,
+    HTTP_SAME_SITE_STRICT,
+    HTTP_SAME_SITE_LAX,
+    HTTP_SAME_SITE_NONE,
+};
+
+
 class http_cookie
 {
 public:
     typedef std::vector<http_cookie>        vector_t;
-
-    enum class http_cookie_type_t
-    {
-        HTTP_COOKIE_TYPE_PERMANENT,
-        HTTP_COOKIE_TYPE_SESSION,
-        HTTP_COOKIE_TYPE_DELETE,
-    };
-
-    enum class http_same_site_t
-    {
-        HTTP_SAME_SITE_UNKNOWN,
-        HTTP_SAME_SITE_DEFAULT,
-        HTTP_SAME_SITE_STRICT,
-        HTTP_SAME_SITE_LAX,
-        HTTP_SAME_SITE_NONE,
-    };
 
                         http_cookie(); // for std::map to work; DO NOT USE!
                         http_cookie(std::string const & name, std::string const & value = "");
@@ -80,6 +82,8 @@ public:
 
     static http_cookie  from_http_header(std::string const & header);
     std::string         to_http_header() const;
+
+    static bool         is_valid_value(std::string const & value, bool strict);
 
 private:
     std::string         f_name = std::string();         // name of the cookie

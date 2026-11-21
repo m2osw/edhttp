@@ -64,7 +64,8 @@ public:
                                     operator = (http_tcp_client_async_connection const &) = delete;
 
     bool                            start();
-    void                            trigger_thread_done();
+    void                            trigger_thread_done();      // thread call this
+    void                            thread_done();              // signal call this
     bool                            has_output() const;
     bool                            is_websocket() const;
     std::size_t                     get_maximum_header_size() const;
@@ -92,7 +93,6 @@ private:
 
     void                            process_h1_buffer();
     void                            process_h2_buffer();
-    void                            thread_done();
 
     http_domain *                   f_parent = nullptr;
     ed::communicator::pointer_t     f_communicator = ed::communicator::pointer_t();

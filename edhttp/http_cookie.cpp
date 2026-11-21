@@ -26,6 +26,7 @@
 #include    "edhttp/names.h"
 #include    "edhttp/token.h"
 #include    "edhttp/uri.h"
+#include    "edhttp/utils.h"
 
 
 // libutf8
@@ -185,7 +186,23 @@ http_cookie::http_cookie(std::string const & name, std::string const & value)
  */
 void http_cookie::set_value(std::string const & value)
 {
-    f_value = value;
+    if(!is_valid_value(value, true))
+    {
+        throw cookie_parse_exception("cookie value cannot include special characters, double quotes, ';', or spaces (1).");
+    }
+
+    if(!value.empty()
+    && value.front() == ' ' || value.front() == '\t'
+    || value.back() == ' ' || value.back() == '\t')
+    {
+        // without the quote, the whitespaces would be removed
+        //
+        f_value = '"' + value + '"';
+    }
+    else
+    {
+        f_value = value;
+    }
 }
 
 
@@ -226,14 +243,19 @@ void http_cookie::set_domain(std::string domain)
         throw cookie_parse_exception("the domain of a cookie cannot just be \".\".");
     }
 
-    tld_info info;
-    char const * fd(domain.c_str());
-    tld_result const r(::tld(fd, &info));
-    if(r != TLD_RESULT_SUCCESS)
+    // test special domains first (such as localhost)
+    //
+    if(!is_accepted_domain(domain))
     {
-        // the URI is invalid or it doesn't end with a known TLD
-        //
-        throw cookie_parse_exception("invalid domain name.");
+        tld_info info;
+        char const * fd(domain.c_str());
+        tld_result const r(::tld(fd, &info));
+        if(r != TLD_RESULT_SUCCESS)
+        {
+            // the URI is invalid or it doesn't end with a known TLD
+            //
+            throw cookie_parse_exception("invalid domain name.");
+        }
     }
 
     // TBD: is the tld() call above sufficient and we can drop this for()
@@ -530,7 +552,7 @@ std::string const & http_cookie::get_value() const
  * \sa get_expire()
  * \sa set_expire_in()
  */
-http_cookie::http_cookie_type_t http_cookie::get_type() const
+http_cookie_type_t http_cookie::get_type() const
 {
     if(f_expire < 0)
     {
@@ -544,7 +566,7 @@ http_cookie::http_cookie_type_t http_cookie::get_type() const
 }
 
 
-http_cookie::http_same_site_t http_cookie::get_same_site() const
+http_same_site_t http_cookie::get_same_site() const
 {
     return f_same_site;
 }
@@ -640,6 +662,49 @@ bool http_cookie::get_http_only() const
 }
 
 
+bool http_cookie::is_valid_value(std::string const & value, bool strict)
+{
+    // value restrictions are based on RFC6265 and RFC6265bis
+    //
+    //     cookie-value = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
+    //
+    bool const quoted(value.length() >= 2
+                   && value.front() == '"'
+                   && value.back() == '"');
+
+    int const max(value.length() - (quoted ? 1 : 0));
+    for(int idx(quoted ? 1 : 0); idx < max; ++idx)
+    {
+        unsigned char c(value[idx]);
+        if(strict)
+        {
+            if(c < 0x21
+            || c > 0x7E
+            || c == '"'
+            || c == ','
+            || c == ';'
+            || c == '\\')
+            {
+                return false;
+            }
+        }
+        else
+        {
+            // non-strict allows for anything except controls and ';'
+            //
+            if(c == ';'
+            || c == 0x7F
+            || (c < 0x20 && c != '\t'))
+            {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+
 /** \brief Create a cookie read from a header line.
  *
  * This function parses a `Set-Cookie: ...` line sent to us by a server.
@@ -695,6 +760,11 @@ bool http_cookie::get_http_only() const
  */
 http_cookie http_cookie::from_http_header(std::string const & header)
 {
+    if(has_controls(header, true, true))
+    {
+        throw cookie_parse_exception("cookie data includes control characters.");
+    }
+
     char const * h(header.c_str());
 
     auto is_white_space = [](char c)
@@ -720,7 +790,7 @@ http_cookie http_cookie::from_http_header(std::string const & header)
     std::string const name(s, e - s);
     if(!is_token(name))
     {
-        throw cookie_parse_exception("cookie name cannot be empty or include a reserved character.");
+        throw cookie_parse_exception("cookie name must be a valid HTTP token.");
     }
     ++h;
     for(; is_white_space(*h); ++h);
@@ -733,39 +803,22 @@ http_cookie http_cookie::from_http_header(std::string const & header)
     for(; *h != '\0' && *h != ';'; ++h);
     e = h;
     for(; e > s && is_white_space(e[-1]); --e);
-    if(e > s + 1 && *s == '"' && e[-1] == '"')
-    {
-        ++s;
-        --e;
-    }
+    // we're expected to keep and send back the value quoted in a similar way
+    //if(e > s + 1 && *s == '"' && e[-1] == '"')
+    //{
+    //    ++s;
+    //    --e;
+    //}
     std::string const value(s, e - s);
     if(*h == ';')
     {
         ++h;
     }
 
-    for(char const * v(value.c_str()); *v != '\0'; ++v)
-    {
-        switch(*v)
-        {
-        default:
-            if(static_cast<signed char>(*v) >= '!')
-            {
-                break;
-            }
-            [[fallthrough]];
-        case '"':
-        case ',':
-        case '\\':
-        case 0x7F:
-            throw cookie_parse_exception("unquoted cookie value cannot include special characters.");
-
-        }
-    }
-
     // now we can create the cookie
     //
     http_cookie result(name, value);
+std::cerr << "--- got cookie name [" << name << "] = value [" << value << "]\n";
 
     // next we parse the parameters such as Secure or Path=/a/b/c ...
     //
@@ -783,7 +836,8 @@ http_cookie http_cookie::from_http_header(std::string const & header)
         for(; *h != '=' && *h != ';' && *h != '\0'; ++h);
         e = h;
         for(; e > s && is_white_space(e[-1]); --e);
-        std::string param_name(s, e - s);
+        std::string const param_name(s, e - s);
+std::cerr << "--- got param name [" << param_name << "]\n";
         bool const has_value(*h == '=');
         std::string param_value;
         if(has_value)
@@ -800,11 +854,9 @@ http_cookie http_cookie::from_http_header(std::string const & header)
             e = h;
             for(; e > s && is_white_space(e[-1]); --e);
             param_value = std::string(s, e - s);
-            if(*h == ';')
-            {
-                ++h;
-            }
 
+            // prevent controls & UTF-8
+            //
             for(char const * v(param_value.c_str()); *v != '\0'; ++v)
             {
                 switch(*v)
@@ -815,16 +867,18 @@ http_cookie http_cookie::from_http_header(std::string const & header)
                         break;
                     }
                     [[fallthrough]];
-                case '"':
-                case ',':
-                case '\\':
                 case 0x7F:
-                    throw cookie_parse_exception("unquoted cookie value cannot include special characters.");
+                    throw cookie_parse_exception("cookie parameter value cannot include special characters.");
 
                 }
             }
         }
+        if(*h == ';')
+        {
+            ++h;
+        }
 
+std::cerr << "--- got value [" << param_value << "] switching on [" << param_name << "] now\n";
         switch(param_name[0])
         {
         case 'd':
@@ -974,7 +1028,7 @@ std::string http_cookie::to_http_header() const
     result += ':';
     result += f_name;
     result += '=';
-    result += urlencode(result, g_name_edhttp_accepted_characters_value);
+    result += f_value;
 
     // WARNING: although spaces are technically not required after each ";"
     //          character; we include them because some user agents may not

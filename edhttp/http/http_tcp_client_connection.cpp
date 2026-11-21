@@ -43,6 +43,11 @@
 //#include    <libaddr/addr_parser.h>
 
 
+// libutf8
+//
+#include    <libutf8/libutf8.h>
+
+
 // snapdev
 //
 #include    <snapdev/safe_assert.h>
@@ -172,6 +177,8 @@ http_tcp_client_connection::http_tcp_client_connection(
     , f_parent(parent)
     , f_input(16 * 1024)
 {
+    non_blocking();
+
     f_is_h2 = tcp_bio_client::get_selected_alpn() == "h2";
     f_maximum_header_size = f_parent->get_maximum_header_size();
 
@@ -286,6 +293,7 @@ void http_tcp_client_connection::process_read()
 {
     if(valid_socket())
     {
+std::cerr << "--- client connection received data from server\n";
         int count_bytes(0);
         std::int32_t const time_limit(get_processing_time_limit());
         snapdev::timespec_ex const limit{ time_limit / 1'000'000, time_limit % 1'000'000 };
@@ -302,6 +310,7 @@ void http_tcp_client_connection::process_read()
             {
                 while(f_input_position < f_input_size)
                 {
+std::cerr << "--- client connection processing data...\n";
                     ssize_t const processed_bytes(is_h2()
                                 ? process_h2_buffer()
                                 : process_h1_buffer());
@@ -385,6 +394,7 @@ ssize_t http_tcp_client_connection::process_h1_buffer()
     std::size_t count_lines(0);
     for(;;)
     {
+//std::cerr << "--- processing H1 buffer with state: " << static_cast<int>(f_h1_state) << "...\n";
         switch(f_h1_state)
         {
         case h1_state_t::H1_STATE_CONNECTING:
@@ -424,9 +434,17 @@ ssize_t http_tcp_client_connection::process_h1_buffer()
                 }
                 else
                 {
-                    std::size_t const length(it - f_input.begin() - f_input_position);
+                    // `it` points to the '\n' so it's not included in the following unless we use a +1
+                    //
+                    std::size_t const length(it - f_input.begin() - f_input_position + 1);
                     count_bytes += length;
-                    f_line += std::string(reinterpret_cast<char const *>(f_input.data()) + f_input_position, length);
+                    f_line += std::string(reinterpret_cast<char const *>(f_input.data()) + f_input_position, length - 1);
+                    f_input_position += length;
+                    if(f_input_position >= f_input_size)
+                    {
+                        f_input_size = 0;
+                        f_input_position = 0;
+                    }
                 }
 
                 // each line must end with "\r\n"
@@ -495,7 +513,9 @@ ssize_t http_tcp_client_connection::process_h1_buffer()
                         if(!f_h1_response->parse_header(f_line))
                         {
                             SNAP_LOG_ERROR
-                                << "found an invalid header line (missing field name, the ':', invalid value)."
+                                << "found an invalid header line: missing field name, the ':', invalid value; \""
+                                << libutf8::to_visible_ascii(f_line)
+                                << "\"."
                                 << SNAP_LOG_SEND;
 
                             process_hup();
@@ -1019,6 +1039,7 @@ ssize_t http_tcp_client_connection::write(void const * buf, std::size_t length)
                     // no buffer needed!
                     //
                     //process_empty_buffer();
+std::cerr << "--- sent " << length << " bytes at once to server.\n";
                     return length;
                 }
 
@@ -1030,6 +1051,7 @@ ssize_t http_tcp_client_connection::write(void const * buf, std::size_t length)
             //       but we're going to cache the data, etc. which is a waste
         }
 
+std::cerr << "--- bufferize " << l << " bytes of data sending to server (non-blocking? " << std::boolalpha << is_non_blocking() << ").\n";
         f_output.insert(f_output.end(), d, d + l);
         return length;
     }
@@ -1045,6 +1067,7 @@ ssize_t http_tcp_client_connection::write(void const * buf, std::size_t length)
 
 bool http_tcp_client_connection::send_request(http_request::pointer_t request)
 {
+std::cerr << "--- child got request!\n";
     http_response::pointer_t response(std::make_shared<http_response>());
     response->set_request(request);
 
@@ -1066,6 +1089,7 @@ bool http_tcp_client_connection::send_request(http_request::pointer_t request)
 
 void http_tcp_client_connection::send_h1_request(http_request::pointer_t request, http_response::pointer_t response)
 {
+std::cerr << "--- sending H1 request?\n";
     if(f_h1_response != nullptr)
     {
         throw logic_error("send_h1_request() called when an f_h1_response is still in place.");
@@ -1074,7 +1098,9 @@ void http_tcp_client_connection::send_h1_request(http_request::pointer_t request
     f_h1_response = response;
 
     std::string const data(request->get_request(true));
+std::cerr << "--- sending HTTP/1.1 request to socket: [" << data << "] (" << data.length() << " bytes) at " << snapdev::now() << "\n";
     write(data.data(), data.length());
+    f_h1_state = h1_state_t::H1_STATE_WAITING;
 }
 
 

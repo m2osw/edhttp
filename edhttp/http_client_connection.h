@@ -44,6 +44,8 @@ class http_client_connection_impl;
 typedef std::uint8_t                        connection_count_t;
 constexpr connection_count_t const          MAXIMUM_CONNECTION_ATTEMPTS_DEFAULT = 6;
 
+constexpr std::size_t const                 MAXIMUM_HEADER_SIZE = 8 * 1024;
+
 typedef int                                 delay_t;
 constexpr delay_t const                     DEFAULT_CONNECTION_TIMEOUT = 10000; // in ms
 constexpr delay_t const                     DEFAULT_HAPPY_EYEBALLS_DELAY = 250; // in ms
@@ -85,7 +87,7 @@ public:
     std::size_t                     get_maximum_header_size() const;
     void                            set_maximum_header_size(std::size_t max);
 
-    void                            send_request(http_request::pointer_t request);
+    bool                            send_request(http_request::pointer_t request);
 
     // new callbacks
     //

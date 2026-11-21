@@ -64,32 +64,6 @@
 
 namespace edhttp
 {
-namespace
-{
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-} // no name namespace
 
 
 
@@ -98,15 +72,17 @@ http_client_connection::http_client_connection()
     , f_impl(std::make_shared<detail::http_client_connection_impl>(this))
     , f_communicator(ed::communicator::instance())
 {
+std::cerr << "--- impl was created...\n";
     if(!f_communicator->add_connection(f_impl))
     {
         // this should not happen since we're 100% in control of this
         // pointer so no one else could have added it
         //
-        SNAP_LOG_ERROR
-            << "adding the client connection implementation to the list of connections failed."
-            << SNAP_LOG_SEND;
+        SNAP_LOG_ERROR                                                                          // LCOV_EXCL_LINE
+            << "adding the client connection implementation to the list of connections failed." // LCOV_EXCL_LINE
+            << SNAP_LOG_SEND;                                                                   // LCOV_EXCL_LINE
     }
+std::cerr << "--- impl was added to list...\n";
 }
 
 
@@ -228,10 +204,13 @@ void http_client_connection::set_maximum_header_size(std::size_t max)
  * The request can be sent using HTTP/1.1, HTTP/2, or HTTP/3.
  *
  * \param[in] request  The request to send to the HTTP server.
+ *
+ * \return true if the request was processed; that does not mean it was
+ *         sent since that happens asynchronously.
  */
-void http_client_connection::send_request(http_request::pointer_t request)
+bool http_client_connection::send_request(http_request::pointer_t request)
 {
-    f_impl->send_request(request);
+    return f_impl->send_request(request);
 }
 
 

@@ -30,6 +30,7 @@ if(SnapCatch2_FOUND)
 
         catch_archiver.cpp
         catch_compressor.cpp
+        catch_http_client.cpp
         catch_parametrized_value_list.cpp
         catch_token.cpp
         catch_uri.cpp
@@ -44,12 +45,14 @@ if(SnapCatch2_FOUND)
             ${PROJECT_SOURCE_DIR}
             ${SNAPCATCH2_INCLUDE_DIRS}
             ${LIBADDR_INCLUDE_DIRS}
+            ${LIBUTF8_INCLUDE_DIRS}
             ${LIBEXCEPT_INCLUDE_DIRS}
     )
 
     target_link_libraries(${PROJECT_NAME}
         edhttp
         ${LIBADDR_LIBRARIES}
+        ${LIBUTF8_LIBRARIES}
         ${SNAPCATCH2_LIBRARIES}
     )
 

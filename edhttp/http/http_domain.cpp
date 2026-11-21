@@ -75,6 +75,8 @@ http_domain::http_domain(
     , f_host(host)
     , f_mode(mode)
 {
+    set_name("edhttp::detail::http_domain[" + host + "]");
+
     connection_count_t const max_attempts(f_parent->get_maximum_connection_attempts());
     bool const h3(
            (allowed_protocols & ALLOWED_HTTP_PROTOCOL_3) != 0
@@ -358,6 +360,7 @@ void http_domain::start_attempt()
     }
     else
     {
+std::cerr << "--- start tcp attempt #" << static_cast<int>(f_current_attempt) << " for address: " << f_attempts[f_current_attempt].f_address << "... " << snapdev::now() << "\n";
         http_tcp_client_async_connection::pointer_t c(std::make_shared<http_tcp_client_async_connection>(
                   this
                 , f_attempts[f_current_attempt].f_address

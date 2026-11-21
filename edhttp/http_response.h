@@ -71,7 +71,7 @@ public:
     std::string                 get_reason_phrase() const;
     bool                        has_header(token const & name) const;
     std::string                 get_header(token const & name) const;
-    http_cookie const &         get_cookie(std::string const & name) const;
+    http_cookie const *         get_cookie(std::string const & name) const;
     http_cookie::vector_t const &
                                 get_cookies() const;
     buffer_t const &            get_response() const;

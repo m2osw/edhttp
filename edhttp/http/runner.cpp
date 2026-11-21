@@ -75,6 +75,7 @@ runner::runner(
  */
 void runner::run()
 {
+std::cerr << "--- the run() function is called in a loop I think?\n";
     connect();
 
     // tell the main thread that we are done
@@ -120,11 +121,13 @@ void runner::connect()
             http_options.add_alpn("http/1.1");
         }
 
+std::cerr << "--- attempt TCP connection (low level, actual TCP!): [" << f_address << "]\n";
         f_tcp_connection = std::make_shared<http_tcp_client_connection>(
                   f_parent
                 , f_address
                 , f_mode
                 , http_options);
+std::cerr << "--- got TCP connection\n";
         return;
     }
     catch(ed::failed_connecting const & e)

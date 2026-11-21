@@ -46,7 +46,9 @@ namespace detail
 http_client_connection_impl::http_client_connection_impl(http_client_connection * parent)
     : timer(-1)
     , f_parent(parent)
+    , f_communicator(ed::communicator::instance())
 {
+    set_name("edhttp::detail::http_client_connection_impl");
 }
 
 
@@ -54,6 +56,11 @@ http_client_connection_impl::~http_client_connection_impl()
 {
     f_communicator->remove_connection(f_udp_ipv4_connection);
     f_communicator->remove_connection(f_udp_ipv6_connection);
+
+    for(auto & d : f_domains)
+    {
+        f_communicator->remove_connection(d.second);
+    }
 }
 
 
@@ -187,7 +194,7 @@ void http_client_connection_impl::process_connection_failed(ed::connection::poin
 }
 
 
-void http_client_connection_impl::send_request(http_request::pointer_t request)
+bool http_client_connection_impl::send_request(http_request::pointer_t request)
 {
     std::string const host(request->get_host());
 
@@ -220,11 +227,22 @@ void http_client_connection_impl::send_request(http_request::pointer_t request)
                     ? ed::mode_t::MODE_ALWAYS_SECURE
                     : ed::mode_t::MODE_PLAIN
             , f_allowed_http_protocols);
+        if(!f_communicator->add_connection(d))
+        {
+            SNAP_LOG_ERROR
+                << "adding domain connection \""
+                << host
+                << "\" to the list of connections failed."
+                << SNAP_LOG_SEND;
+            return false;
+        }
 
         f_domains[host] = d;
     }
 
     d->send_request(request);
+
+    return true;
 }
 
 

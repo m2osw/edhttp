@@ -38,9 +38,6 @@ namespace detail
 
 
 
-constexpr std::size_t const         MAXIMUM_HEADER_SIZE = 8 * 1024;
-
-
 class http_client_connection_impl
     : public ed::timer
 {
@@ -71,7 +68,7 @@ public:
 
     void                            process_connected(ed::connection::pointer_t c);
     void                            process_connection_failed(ed::connection::pointer_t c);
-    void                            send_request(http_request::pointer_t request);
+    bool                            send_request(http_request::pointer_t request);
     bool                            process_response(http_response::pointer_t response);
 
 private:

@@ -31,6 +31,7 @@ field_h2_scheme=:scheme
 field_host=host
 field_location=location
 field_max_age=max-age
+field_date=date
 field_set_cookie=set-cookie
 field_strict_transport_security=strict-transport-security
 field_transfer_encoding=transfer-encoding
