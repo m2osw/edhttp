@@ -1184,14 +1184,16 @@ CATCH_TEST_CASE("invalid_parametrized_value_list", "[invalid][string]")
     {
         edhttp::parametrized_value_list locale(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_STRICT_PARAMETRIZED_VALUE_LIST);
 
-        // TODO: the space should not be require to get the error?
-        //       except that the `|` character is allowed in tokens
+        // first we have an invalid character in the name
         //
-        CATCH_REQUIRE_FALSE(locale.parse("fr-FR|"));
-        CATCH_REQUIRE(locale.error_messages() == "the bare item name was expected to be followed by an equal sign (=) and a value.\n");
+        CATCH_REQUIRE_FALSE(locale.parse("fr-FR?"));
+        CATCH_REQUIRE(locale.error_messages() == "a parameter name must be a valid HTTP token.\n"
+                                                 "unexpected token, skipping to next item.\n");
 
+        // second the character is after a space so it should be the '=' or ';'
+        //
         CATCH_REQUIRE_FALSE(locale.parse("fr-FR |"));
-        CATCH_REQUIRE(locale.error_messages() == "the bare item name was expected to be followed by an equal sign (=) and a value.\n");
+        CATCH_REQUIRE(locale.error_messages() == "item not ended properly.\n");
     }
     CATCH_END_SECTION()
 
@@ -1266,7 +1268,7 @@ CATCH_TEST_CASE("invalid_parametrized_value_list", "[invalid][string]")
                                                  "unexpected token after the = sign to assign a parameter's value.\n");
 
         CATCH_REQUIRE_FALSE(alt_svc.parse("h3 = 123;; color = blue"));
-        CATCH_REQUIRE(alt_svc.error_messages() == "unexpected token in an item list of parameters.\n");
+        CATCH_REQUIRE(alt_svc.error_messages() == "unexpected token (59) in an item list of parameters.\n");
 
         CATCH_REQUIRE_FALSE(alt_svc.parse("h3 = 123; color += 0x550022"));
         CATCH_REQUIRE(alt_svc.error_messages() == "item parameter \"color\" must be assigned a value.\n");
