@@ -39,6 +39,7 @@
 //
 #include    <snapdev/not_reached.h>
 #include    <snapdev/not_used.h>
+#include    <snapdev/safe_assert.h>
 #include    <snapdev/trim_string.h>
 
 
@@ -50,7 +51,535 @@
 
 namespace edhttp
 {
+namespace
+{
 
+
+
+class parser_t
+{
+public:
+    enum class token_t
+    {
+        TOK_EOF,
+        TOK_ERROR,      // parser needs to skip up to next ','
+
+        TOK_TOKEN,      // HTTP token
+        TOK_VALUE,      // direct value
+        TOK_QVALUE,     // double quoted string
+
+        TOK_EQUAL = '=',
+        TOK_COMMA = ',',
+        TOK_SEMICOLON = ';',
+    };
+
+    enum class allow_value_t
+    {
+        ALLOW_VALUE_NO,
+        ALLOW_VALUE_YES,
+        ALLOW_VALUE_WITHOUT_EQUAL,
+    };
+
+    parser_t(
+              std::string const & in
+            , parametrized_value_mode_t mode
+            , parametrized_value::vector_t & parts
+            , std::string & error_messages)
+        : f_in(in.c_str())
+        , f_mode(mode)
+        , f_parts(parts)
+        , f_error_messages(error_messages)
+    {
+    }
+
+    parser_t(parser_t const & rhs) = delete;
+    parser_t & operator = (parser_t const & rhs) = delete;
+
+    int getc()
+    {
+        if(f_unget != '\0')
+        {
+            int const c(f_unget);
+            f_unget = '\0';
+            return c;
+        }
+
+        if(*f_in == '\0')
+        {
+            return EOF;
+        }
+
+        return static_cast<unsigned char>(*f_in++);
+    }
+
+    void ungetc(int c)
+    {
+        if(c == EOF)
+        {
+            return;
+        }
+
+        if(f_unget != '\0')
+        {
+            throw logic_error("unget() called more than once."); // LCOV_EXCL_LINE
+        }
+        f_unget = c;
+    }
+
+    static bool is_end_of_string(int c)
+    {
+        return c == '"';
+    }
+
+    static bool is_end_of_cookie_string(int c)
+    {
+        return c == '"' || c == ';' || c == ',';
+    }
+
+    void next_token(allow_value_t allow_value = allow_value_t::ALLOW_VALUE_NO)
+    {
+        for(;;)
+        {
+            int c(getc());
+            if(c == EOF)
+            {
+                f_token = token_t::TOK_EOF;
+                return;
+            }
+
+            switch(c)
+            {
+            case ' ':
+            case '\t':
+                // skip those
+                //
+                break;
+
+            case '=':
+            case ',':
+            case ';':
+                f_token = token_t(c);
+                return;
+
+            case '"':
+                // found a quoted value
+                //
+std::cerr << "--- found the double quotes but maybe we are missing the QUOTED STRING flag?\n";
+                if((f_mode & PARAMETRIZED_VALUE_MODE_QUOTED_STRING) != 0)
+                {
+                    bool const keep_quotes((f_mode & PARAMETRIZED_VALUE_MODE_QUOTED_STRING_KEEP_QUOTES) != 0);
+                    bool valid_string(true);
+                    f_value.clear();
+                    if(keep_quotes)
+                    {
+                        f_value += c;
+                    }
+                    auto found_end_of_string((f_mode & PARAMETRIZED_VALUE_MODE_QUOTED_STRING_COOKIE_SEMICOLON) == 0
+                                        ? is_end_of_string
+                                        : is_end_of_cookie_string);
+                    for(c = getc(); c != EOF && !found_end_of_string(c); c = getc())
+                    {
+                        if(c == '\\'
+                        && (f_mode & PARAMETRIZED_VALUE_MODE_QUOTED_STRING_ESCAPE_CHARACTER) != 0)
+                        {
+                            // any valid ASCII character can be escaped
+                            //
+                            c = getc();
+                            if(c == EOF)
+                            {
+                                f_error_messages += "unexpected standalone backslash at the end of a quoted string.\n";
+                                f_token = token_t::TOK_ERROR;
+                                return;
+                            }
+                        }
+
+                        // only accept VCHAR, SP, and HTAB
+                        //
+                        if((c < ' ' && c != '\t')
+                        || c > '~')
+                        {
+                            if(valid_string)
+                            {
+                                f_error_messages += "invalid character in quoted string.\n";
+                                valid_string = false;
+                            }
+                        }
+                        else
+                        {
+                            f_value += c;
+                        }
+                    }
+                    if(c != '"'
+                    && (f_mode & PARAMETRIZED_VALUE_MODE_QUOTED_STRING_COOKIE_SEMICOLON) == 0)
+                    {
+                        f_error_messages += "closing quote missing.\n";
+                        f_token = token_t::TOK_ERROR;
+                        return;
+                    }
+                    if(!valid_string)
+                    {
+                        // quotes where good, but some characters are
+                        // obs-text which we refuse so return an error
+                        //
+                        // DO NOT ADD YET ANOTHER ERROR TO f_error_messages
+                        //
+                        f_token = token_t::TOK_ERROR;
+                        return;
+                    }
+
+                    // the value may end because of a ';' or ',' instead of '"'
+                    //
+                    if(keep_quotes && c == '"')
+                    {
+                        f_value += c;
+                    }
+
+                    f_token = token_t::TOK_QVALUE;
+                    return;
+                }
+                [[fallthrough]]; // TBD, can the " be part of a value instead or is it just an error?
+            default:
+                f_value.clear();
+                f_value.reserve(32);
+                if(allow_value != allow_value_t::ALLOW_VALUE_NO)
+                {
+                    // in this case the caller allows a value
+                    //
+                    // i.e. The value of a parameter does not always
+                    //      need quotation and if the entry itself can
+                    //      be an immediate value.
+                    //
+                    bool valid_value(true);
+                    do
+                    {
+                        // only accept VCHAR, SP, and HTAB
+                        //
+                        if((c < ' ' && c != '\t')
+                        || c > '~')
+                        {
+                            if(valid_value)
+                            {
+                                f_error_messages += "invalid character in value.\n";
+                                valid_value = false;
+                            }
+                        }
+                        else
+                        {
+                            f_value += c;
+                        }
+                        c = getc();
+                    }
+                    while(c != EOF && c != ',' && c != ';'
+                        && (allow_value == allow_value_t::ALLOW_VALUE_WITHOUT_EQUAL ? c != '=' : true));
+                    ungetc(c);
+                    f_value = snapdev::trim_string(f_value);
+                    f_token = token_t::TOK_VALUE;
+std::cerr << "--- value?! [" << f_value << "] (" << static_cast<int>(allow_value) << ")\n";
+                    return;
+                }
+                else
+                {
+                    // default must be a valid token
+                    //
+                    do
+                    {
+                        f_value += c;
+                        c = getc();
+                    }
+                    while(c != EOF
+                       && c != ',' && c != ';'
+                       && c != '='
+                       && c != ' ' && c != '\t');
+                    if(c != EOF
+                    && c != ' '
+                    && c != '\t')
+                    {
+                        ungetc(c);
+                    }
+std::cerr << "--- token [" << f_value << "] (" << static_cast<int>(f_mode) << ")\n";
+
+                    if(!is_token(f_value))
+                    {
+                        f_error_messages += "a parameter name must be a valid HTTP token.\n";
+                        f_token = token_t::TOK_ERROR;
+                        return;
+                    }
+                    f_token = token_t::TOK_TOKEN;
+                    return;
+                }
+                snapdev::NOT_REACHED();
+
+            }
+        }
+    }
+
+    bool get_part_bare_item(parametrized_value & part)
+    {
+        if((f_mode & PARAMETRIZED_VALUE_MODE_BARE_ITEM_VALUE_ONLY) != 0)
+        {
+            part.set_value(f_value);
+            next_token();
+            return true;
+        }
+
+        part.set_name(f_value);
+
+        next_token();
+        if(f_token == token_t::TOK_EQUAL)
+        {
+            if((f_mode & PARAMETRIZED_VALUE_MODE_BARE_ITEM_NAME_ONLY) != 0)
+            {
+                f_error_messages +=
+                      "unexpected equal (=) after the bare item name.\n";
+                return false;
+            }
+
+            // if a non-token value needs quotation then we need to pass false
+            //
+            next_token((f_mode & PARAMETRIZED_VALUE_MODE_QUOTE_NON_TOKEN_VALUE) == 0
+                                    ? allow_value_t::ALLOW_VALUE_NO
+                                    : allow_value_t::ALLOW_VALUE_YES);
+            switch(f_token)
+            {
+            case token_t::TOK_TOKEN:
+            case token_t::TOK_VALUE:
+            case token_t::TOK_QVALUE:
+                part.set_value(f_value);
+                break;
+
+            case token_t::TOK_ERROR:
+                // next_token() already emitted an error
+                return false;
+
+            default:
+                f_error_messages +=
+                      "unexpected token ("
+                    + std::to_string(static_cast<int>(f_token))
+                    + ") after the = sign of the bare item.\n";
+                return false;
+
+            }
+            next_token();
+        }
+        else if((f_mode & (PARAMETRIZED_VALUE_MODE_BARE_ITEM_NAME_ONLY | PARAMETRIZED_VALUE_MODE_BARE_ITEM_NAME_OPTIONAL_VALUE)) == 0)
+        {
+            f_error_messages +=
+                  "the bare item name was expected to be followed by an equal sign (=) and a value.\n";
+            return false;
+        }
+
+        return true;
+    }
+
+    bool get_part_parameters(parametrized_value & part)
+    {
+        for(;;)
+        {
+            //next_token();
+            //if(f_token == token_t::TOK_EOF
+            //|| f_token == token_t::TOK_COMMA)
+            //{
+            //    break;
+            //}
+
+            if(f_token != token_t::TOK_TOKEN)
+            {
+                f_error_messages += "unexpected token ("
+                        + std::to_string(static_cast<int>(f_token))
+                        + ") in an item list of parameters.\n";
+                return false;
+            }
+
+            std::string const param_name(f_value);
+
+            next_token();
+            if(f_token != token_t::TOK_EQUAL)
+            {
+                if((f_mode & PARAMETRIZED_VALUE_MODE_PARAMETER_OPTIONAL_VALUE) == 0)
+                {
+                    f_error_messages += "item parameter \""
+                                      + param_name
+                                      + "\" must be assigned a value.\n";
+                    return false;
+                }
+                f_value.clear();
+            }
+            else if((f_mode & PARAMETRIZED_VALUE_MODE_PARAMETER_NAME_ONLY) != 0)
+            {
+                f_error_messages += "item parameter \""
+                                  + param_name
+                                  + "\" cannot be assigned a value.\n";
+                return false;
+            }
+            else
+            {
+                next_token((f_mode & PARAMETRIZED_VALUE_MODE_QUOTE_NON_TOKEN_VALUE) == 0
+                                ? allow_value_t::ALLOW_VALUE_NO
+                                : allow_value_t::ALLOW_VALUE_YES);
+                switch(f_token)
+                {
+                case token_t::TOK_TOKEN:
+                case token_t::TOK_VALUE:
+                case token_t::TOK_QVALUE:
+                    break;
+
+                default:
+                    f_error_messages += "unexpected token after the = sign to assign a parameter's value.\n";
+                    return false;
+
+                }
+            }
+
+            part.add_parameter(param_name, f_value);
+
+            next_token();
+
+            if(f_token == token_t::TOK_EOF
+            || f_token == token_t::TOK_COMMA)
+            {
+                break;
+            }
+
+            if(f_token != token_t::TOK_SEMICOLON)
+            {
+                f_error_messages += "item's parameters must be separated by a semicolon.\n";
+                return false;
+            }
+
+            next_token();
+
+            if(f_token == token_t::TOK_EOF
+            || f_token == token_t::TOK_COMMA)
+            {
+                break;
+            }
+        }
+
+        return true;
+    }
+
+    bool parse_parameterized_item()
+    {
+        parametrized_value part;
+
+        // we have a case where the first value is not different from any
+        // of the other parameters; in that special case (as in the
+        // Cache-Control) we want that first value to be read as a parameter
+        //
+        if((f_mode & PARAMETRIZED_VALUE_MODE_NO_BARE_ITEM) == 0)
+        {
+            if(!get_part_bare_item(part))
+            {
+                return false;
+            }
+            if(f_token != token_t::TOK_EOF)
+            {
+                if(f_token == token_t::TOK_SEMICOLON)
+                {
+                    next_token();
+                    if(f_token != token_t::TOK_EOF
+                    && f_token != token_t::TOK_COMMA)
+                    {
+                        if(!get_part_parameters(part))
+                        {
+                            return false;
+                        }
+                    }
+                }
+                else if(f_token != token_t::TOK_EOF
+                     && f_token != token_t::TOK_COMMA)
+                {
+                    f_error_messages += "item not ended properly.\n";
+                    return false;
+                }
+            }
+        }
+        else
+        {
+            // no bare item in this case so we need to directly jump to
+            // the parameters
+            //
+            if(!get_part_parameters(part))
+            {
+                return false;
+            }
+        }
+
+        f_parts.push_back(part);
+
+        return true;
+    }
+
+    void parse()
+    {
+        bool valid(true);
+        allow_value_t const value_only((f_mode & PARAMETRIZED_VALUE_MODE_BARE_ITEM_VALUE_ONLY) == 0
+                                    ? allow_value_t::ALLOW_VALUE_NO
+                                    : allow_value_t::ALLOW_VALUE_WITHOUT_EQUAL);
+        for(;;)
+        {
+            next_token(value_only);
+            switch(f_token)
+            {
+            case token_t::TOK_EOF:
+                return;
+
+            case token_t::TOK_TOKEN:
+            case token_t::TOK_VALUE:
+                if(!parse_parameterized_item())
+                {
+                    // there was an error, we need to skip everything
+                    // up to EOF or the next comma
+                    //
+                    // Note: if a next_token() returns EOF, then calling
+                    //       it again always returns EOF
+                    //
+                    do
+                    {
+                        next_token();
+                    }
+                    while(f_token != token_t::TOK_EOF
+                       && f_token != token_t::TOK_COMMA);
+                }
+                break;
+
+            case token_t::TOK_COMMA:
+                // just skip empty items silently
+                //
+                break;
+
+            default:
+                // anything else is an error; but emit only one message
+                //
+                if(valid)
+                {
+                    valid = false;
+                    f_error_messages += "unexpected token, skipping to next item.\n";
+                }
+                break;
+
+            }
+        }
+
+        snapdev::NOT_REACHED();
+    }
+
+private:
+    char const *            f_in = nullptr;
+    parametrized_value_mode_t const
+                            f_mode;
+    int                     f_unget = '\0';
+    bool                    f_immediate_value = false;
+    parametrized_value::vector_t &
+                            f_parts;
+    std::string &           f_error_messages;
+
+    token_t                 f_token = token_t::TOK_ERROR;
+    std::string             f_value = std::string();
+};
+
+
+} // no name namespace
 
 
 /** \brief Create a new weighted HTTP string object.
@@ -64,25 +593,33 @@ namespace edhttp
  * it directly a "value". This is useful to parse many more types
  * of entries.
  *
+ * \warning
+ * If the parsing generates, errors, the object is still created,
+ * possible without any parameter or just a few. You can verify
+ * whether it worked using `if(!error_messages().empty()) ...`.
+ *
  * \param[in] str  The list of weighted HTTP strings.
- * \param[in] immediate_value  Whether the first word is an immediate value.
+ * \param[in] mode  Defines what is allowed where.
  */
 parametrized_value_list::parametrized_value_list(
           std::string const & str
-        , bool immediate_value)
+        , parametrized_value_mode_t mode)
+    : f_mode(mode)
 {
-    snapdev::NOT_USED(parse(str, immediate_value));
+    snapdev::SAFE_ASSERT((f_mode & (PARAMETRIZED_VALUE_MODE_BARE_ITEM_NAME_ONLY | PARAMETRIZED_VALUE_MODE_BARE_ITEM_VALUE_ONLY)) != (PARAMETRIZED_VALUE_MODE_BARE_ITEM_NAME_ONLY | PARAMETRIZED_VALUE_MODE_BARE_ITEM_VALUE_ONLY), "One of the bare item name or value is required. You cannot forbid both.");
+
+    snapdev::NOT_USED(parse(str));
 }
 
 
-/** \brief Parse a possibly weighted HTTP string.
+/** \brief Parse a parametrized HTTP string.
  *
- * This function parses a possibly weighted HTTP string.
+ * This function parses a parametrized HTTP string.
  *
- * The HTTP protocol supports this format for many fields.
- * The parser creates a list of name/value parts which is saves
- * in parametrized_value object. The parametrized_value objects are separated
- * by commas. The name/value parts are separated by semi-colons.
+ * The HTTP protocol supports this format for many headers.
+ * The parser creates a list of name/value parts which are saves
+ * in parametrized_value objects. The parametrized_value objects are
+ * separated by commas. The parameters parts are separated by semi-colons.
  *
  * We view the `q=<float>` parameter as a special parameter which
  * is automatically converted in a weight. This allows for sorting
@@ -102,11 +639,29 @@ parametrized_value_list::parametrized_value_list(
  *      opt_value: token
  *               | quoted_string
  *      quoted_string: '"' *( CHAR ) '"'
+ *      quoted_string: '"' *( quoted_text ) '"'
+ *      quoted_text: [ \t!#-[\]-~]
+ *                 | '\\' [ \t!-~]
  *      token: 1*tchar
  *      tchar: "!" / "#" / "$" / "%" / "&" / "'" / "*"
  *           / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"
  *           / DIGIT / ALPHA
  * \endcode
+ *
+ * The \p mode parameter defined how the parser really functions. For
+ * example, for a cookie, the quoted string is just a mimic and a ';'
+ * within that string is still viewed as the next parameter `name=value`.
+ * Many of those do not view the first entry as anything special (such
+ * as the Cache-Control header). Some strings are strict about their
+ * parameters which must all have a value. The Accept-Language header
+ * sees the first entry as a value, not a name=value, and that value
+ * can include characters forbidden in an HTTP token. By tweaking the
+ * mode, you can define how each part gets handled.
+ *
+ * Note that in most cases, further processing is required to handle
+ * the specific header you are working with. For example, a language
+ * range must be composed of at one to eight letters optionally followed
+ * by one to eight letters or digits. This function will not verify that.
  *
  * From [RFC-9110](https://www.rfc-editor.org/rfc/rfc9110.html)
  * and [RFC-4647](https://www.rfc-editor.org/rfc/rfc4647.html)
@@ -172,7 +727,6 @@ parametrized_value_list::parametrized_value_list(
  * could be doggy and as such need to be ignored).
  *
  * \param[in] str  A possibly weighted HTTP string to parse.
- * \param[in] immediate_value  Whether the first word is an immediate value.
  * \param[in] reset  Reset the existing weighted HTTP strings if true.
  *                   If false, append the new data.
  *
@@ -180,7 +734,6 @@ parametrized_value_list::parametrized_value_list(
  */
 bool parametrized_value_list::parse(
       std::string const & str
-    , bool immediate_value
     , bool reset)
 {
     f_error_messages.clear();
@@ -197,351 +750,7 @@ bool parametrized_value_list::parse(
         f_original += str;
     }
 
-    class parser_t
-    {
-    public:
-        enum class token_t
-        {
-            TOK_EOF,
-            TOK_ERROR,      // parser needs to skip up to next ','
-
-            TOK_TOKEN,      // HTTP token
-            TOK_QVALUE,     // double quoted string
-
-            TOK_EQUAL = '=',
-            TOK_COMMA = ',',
-            TOK_SEMICOLON = ';',
-        };
-
-        parser_t(
-                  std::string const & in
-                , bool immediate_value
-                , parametrized_value::vector_t & parts
-                , std::string & error_messages)
-            : f_in(in.c_str())
-            , f_immediate_value(immediate_value)
-            , f_parts(parts)
-            , f_error_messages(error_messages)
-        {
-        }
-
-        parser_t(parser_t const & rhs) = delete;
-        parser_t & operator = (parser_t const & rhs) = delete;
-
-        int getc()
-        {
-            if(f_unget != '\0')
-            {
-                int const c(f_unget);
-                f_unget = '\0';
-                return c;
-            }
-
-            if(*f_in == '\0')
-            {
-                return EOF;
-            }
-
-            return static_cast<unsigned char>(*f_in++);
-        }
-
-        void ungetc(int c)
-        {
-            if(f_unget != '\0')
-            {
-                throw logic_error("unget() called more than once."); // LCOV_EXCL_LINE
-            }
-            f_unget = c;
-        }
-
-        token_t get_token()
-        {
-            for(;;)
-            {
-                int c(getc());
-                if(c == EOF)
-                {
-                    return token_t::TOK_EOF;
-                }
-
-                switch(c)
-                {
-                case ' ':
-                case '\t':
-                    // skip those
-                    //
-                    break;
-
-                case '=':
-                case ',':
-                case ';':
-                    return token_t(c);
-
-                case '"':
-                    // found a quoted token
-                    //
-                    {
-                        bool valid_string(true);
-                        f_token.clear();
-                        for(c = getc(); c != EOF && c != '"'; c = getc())
-                        {
-                            if(c == '\\')
-                            {
-                                // any valid ASCII character can be escaped
-                                //
-                                c = getc();
-                                if(c == EOF)
-                                {
-                                    f_error_messages += "unexpected standalone backslash at the end of a quoted string.\n";
-                                    return token_t::TOK_ERROR;
-                                }
-                            }
-
-                            // only accept VCHAR, SP, and HTAB
-                            //
-                            if((c < ' ' && c != '\t')
-                            || c > '~')
-                            {
-                                if(valid_string)
-                                {
-                                    f_error_messages += "invalid character in quoted string.\n";
-                                    valid_string = false;
-                                }
-                            }
-                            else
-                            {
-                                f_token += c;
-                            }
-                        }
-                        if(c != '"')
-                        {
-                            f_error_messages += "closing quote missing.\n";
-                            return token_t::TOK_ERROR;
-                        }
-                        if(!valid_string)
-                        {
-                            // quotes where good, but some characters are
-                            // obs-text which we refuse so return an error
-                            //
-                            // DO NOT ADD YET ANOTHER ERROR TO f_error_messages
-                            //
-                            return token_t::TOK_ERROR;
-                        }
-                    }
-                    return token_t::TOK_QVALUE;
-
-                default:
-                    // default must be a valid token
-                    //
-                    {
-                        f_token.clear();
-                        f_token.reserve(32);
-                        do
-                        {
-                            f_token += c;
-                            c = getc();
-                        }
-                        while(c != EOF
-                           && c != ',' && c != ';'
-                           && c != '='
-                           && c != ' ' && c != '\t');
-                        if(c != ' '
-                        && c != '\t')
-                        {
-                            ungetc(c);
-                        }
-
-                        if(!is_token(f_token))
-                        {
-                            f_error_messages += "a parameter name must be a valid HTTP token.\n";
-                            return token_t::TOK_ERROR;
-                        }
-                    }
-                    return token_t::TOK_TOKEN;
-
-                }
-            }
-        }
-
-        bool parse_parameterized_item()
-        {
-            // one item is:
-            //
-            //     ; standard weighted strings
-            //     token = <value> ; token [ = <value> ] ; ...
-            //
-            //     ; weighted string with immediate values
-            //     <value> ; token [ = <value> ] ; ...
-            //
-            // this is converted in what we call a parametrized_value; the first
-            // token is the name of the parametrized_value; and the following
-            // ones are the parameters; the function is called with the
-            // first token already in f_token
-            //
-            parametrized_value part(f_token);
-
-            token_t token(get_token());
-            if(!f_immediate_value
-            && token == token_t::TOK_EQUAL)
-            {
-                token = get_token();
-                switch(token)
-                {
-                case token_t::TOK_TOKEN:
-                case token_t::TOK_QVALUE:
-                    part.set_value(f_token);
-                    break;
-
-                case token_t::TOK_ERROR:
-                    // get_token() already emitted an error
-                    return false;
-
-                default:
-                    f_error_messages +=
-                          "unexpected token ("
-                        + std::to_string(static_cast<int>(token))
-                        + ") after the = sign.\n";
-                    return false;
-
-                }
-                token = get_token();
-            }
-
-            if(token == token_t::TOK_SEMICOLON)
-            {
-                for(;;)
-                {
-                    token = get_token();
-                    if(token == token_t::TOK_EOF
-                    || token == token_t::TOK_COMMA)
-                    {
-                        break;
-                    }
-
-                    if(token != token_t::TOK_TOKEN)
-                    {
-                        f_error_messages += "unexpected token in an item list of parameters.\n";
-                        return false;
-                    }
-
-                    std::string param_name(f_token);
-
-                    token = get_token();
-                    if(token != token_t::TOK_EQUAL)
-                    {
-                        f_error_messages += "item parameter \""
-                                          + param_name
-                                          + "\" must be assigned a value.\n";
-                        return false;
-                    }
-
-                    token = get_token();
-                    switch(token)
-                    {
-                    case token_t::TOK_TOKEN:
-                    case token_t::TOK_QVALUE:
-                        break;
-
-                    default:
-                        f_error_messages += "unexpected token after the = sign to assign a parameter's value.\n";
-                        return false;
-
-                    }
-
-                    part.add_parameter(param_name, f_token);
-
-                    token = get_token();
-
-                    if(token == token_t::TOK_EOF
-                    || token == token_t::TOK_COMMA)
-                    {
-                        break;
-                    }
-
-                    if(token != token_t::TOK_SEMICOLON)
-                    {
-                        f_error_messages += "item's parameters must be separated by semicolon.\n";
-                        return false;
-                    }
-                }
-            }
-            else
-            {
-                if(token != token_t::TOK_EOF
-                && token != token_t::TOK_COMMA)
-                {
-                    f_error_messages += "item not ended properly.\n";
-                    return false;
-                }
-            }
-
-
-            f_parts.push_back(part);
-
-            return true;
-        }
-
-        void parse()
-        {
-            bool valid(true);
-            for(;;)
-            {
-                token_t token(get_token());
-                switch(token)
-                {
-                case token_t::TOK_EOF:
-                    return;
-
-                case token_t::TOK_TOKEN:
-                    if(!parse_parameterized_item())
-                    {
-                        // there was an error, we need to skip everything
-                        // up to EOF or the next comma
-                        //
-                        // Note: if a get_token() returns EOF, then calling
-                        //       it again always returns EOF
-                        //
-                        do
-                        {
-                            token = get_token();
-                        }
-                        while(token != token_t::TOK_EOF
-                           && token != token_t::TOK_TOKEN);
-                    }
-                    break;
-
-                case token_t::TOK_COMMA:
-                    // just skip empty items silently
-                    //
-                    break;
-
-                default:
-                    // anything else is an error; but emit only one message
-                    //
-                    if(valid)
-                    {
-                        valid = false;
-                        f_error_messages += "unexpected token, skipping to next item.\n";
-                    }
-                    break;
-
-                }
-            }
-
-            snapdev::NOT_REACHED();
-        }
-
-    private:
-        char const *            f_in = nullptr;
-        int                     f_unget = '\0';
-        bool                    f_immediate_value = false;
-        parametrized_value::vector_t & f_parts;
-        std::string &           f_error_messages;
-
-        std::string             f_token = std::string();
-    };
-
-    parser_t parser(str, immediate_value, f_parts, f_error_messages);
+    parser_t parser(str, f_mode, f_parts, f_error_messages);
     parser.parse();
 
     if(!f_error_messages.empty())
@@ -571,7 +780,12 @@ bool parametrized_value_list::parse(
  * If \p name is not found in the list of parts, this function returns
  * UNDEFINED_LEVEL (which is -1.0f).
  *
- * \param[in] name  The name of the part for which the level is requested.
+ * \todo
+ * Determine whether we should limit to just the part value or name
+ * with a parameter.
+ *
+ * \param[in] name  The name or value of the part for which the level is
+ *                  requested.
  *
  * \return The part level or UNDEFINED_LEVEL.
  */
@@ -580,7 +794,10 @@ parametrized_value::level_t parametrized_value_list::get_level(std::string const
     const int max_parts(f_parts.size());
     for(int i(0); i < max_parts; ++i)
     {
-        if(f_parts[i].get_name() == name)
+std::cerr << "--- part name [" << f_parts[i].get_name() << "/" << f_parts[i].get_value() << "] searching for [" << name << "]\n";
+
+        if(f_parts[i].get_name() == name
+        || f_parts[i].get_value() == name)
         {
             return f_parts[i].get_level();
         }
@@ -610,6 +827,20 @@ parametrized_value * parametrized_value_list::get_part(std::string const & name)
     for(int i(0); i < max_parts; ++i)
     {
         if(f_parts[i].get_name() == name)
+        {
+            return const_cast<parametrized_value *>(&f_parts[i]);
+        }
+    }
+    return nullptr;
+}
+
+
+parametrized_value * parametrized_value_list::get_part_by_value(std::string const & name) const
+{
+    const int max_parts(f_parts.size());
+    for(int i(0); i < max_parts; ++i)
+    {
+        if(f_parts[i].get_value() == name)
         {
             return const_cast<parametrized_value *>(&f_parts[i]);
         }

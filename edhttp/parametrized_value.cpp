@@ -59,10 +59,10 @@ namespace edhttp
  *
  * \sa get_name()
  */
-parametrized_value::parametrized_value(std::string const & name)
-    : f_name(name)
-{
-}
+//parametrized_value::parametrized_value(std::string const & name)
+//    : f_name(name)
+//{
+//}
 
 
 /** \brief Retrieve the parametrized_value name.
@@ -80,6 +80,18 @@ parametrized_value::parametrized_value(std::string const & name)
 std::string const & parametrized_value::get_name() const
 {
     return f_name;
+}
+
+
+/** \brief Set the name of the parameter.
+ *
+ * This function allows you to set the name of the parameter.
+ *
+ * \param[in] name  The name of this parameter.
+ */
+void parametrized_value::set_name(std::string const & name)
+{
+    f_name = name;
 }
 
 
@@ -305,7 +317,10 @@ std::string parametrized_value::to_string() const
     std::string result(f_name);
     if(!f_value.empty())
     {
-        result += '=';
+        if(!result.empty())
+        {
+            result += '=';
+        }
 
         if(is_token(f_value))
         {

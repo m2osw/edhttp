@@ -86,12 +86,14 @@ public:
     void                            set_maximum_connection_attempts(connection_count_t max);
     std::size_t                     get_maximum_header_size() const;
     void                            set_maximum_header_size(std::size_t max);
+    bool                            get_use_cache() const;
+    void                            set_use_cache(bool use_cache = true);
 
     bool                            send_request(http_request::pointer_t request);
 
     // new callbacks
     //
-    virtual void                    process_response(http_response::pointer_t response);
+    virtual bool                    process_response(http_response::pointer_t response);
     virtual void                    process_connected(ed::connection::pointer_t c);
     virtual void                    process_connection_failed(ed::connection::pointer_t c);
 

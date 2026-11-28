@@ -140,7 +140,7 @@ public:
     advgetopt::string_list_t const &
                                 path_list() const;
 
-    // option handling
+    // option handling (internal)
     //
     void                        set_option(std::string const & name, std::string const & value);
     void                        unset_option(std::string const & name);

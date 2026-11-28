@@ -37,6 +37,7 @@
 // snapdev
 //
 #include    <snapdev/callback_manager.h>
+#include    <snapdev/timespec_ex.h>
 
 
 // C++
@@ -67,12 +68,18 @@ public:
                                                     callback_t;
     typedef snapdev::callback_manager<callback_t>   callback_manager_t;
 
+    // TODO: allow copies to be made and those should reset the f_readonly flag back to false
 
+    snapdev::timespec_ex const &
+                                get_request_created_date() const;
+    time_t                      get_request_sent_date() const;
     ed::mode_t                  get_mode() const;
     uri const &                 get_uri() const;
     addr::addr::vector_t        get_addresses() const;
     std::string                 get_host() const;
+    std::string                 get_host_header() const;
     int                         get_port() const;
+    std::string                 get_origin_header(bool null_origin = false) const;
     std::string                 get_agent_name() const;
     std::string                 get_method() const;
     std::string                 get_path() const;
@@ -80,6 +87,8 @@ public:
     header_t const &            get_headers() const;
     std::string                 get_post(std::string const & name) const;
     std::string                 get_body() const; // also returns data
+    std::shared_ptr<http_response>
+                                get_response_to_revalidate() const;
     std::string                 get_request(bool keep_alive) const;
 
     void                        set_mode(ed::mode_t mode);
@@ -96,6 +105,9 @@ public:
     void                        set_basic_auth(std::string const & username, std::string const & secret);
     void                        set_data(std::string const & data);
     void                        set_body(std::string const & body);
+    void                        set_response_to_revalidate(std::shared_ptr<http_response> response);
+    void                        mark_as_readonly();
+    void                        mark_as_sent();
 
     callback_manager_t::callback_id_t
                                 add_response_callback(callback_t f);
@@ -103,6 +115,10 @@ public:
     bool                        process_response(std::shared_ptr<http_response> response);
 
 private:
+    void                        verify_mutable() const;
+
+    snapdev::timespec_ex const  f_request_date = snapdev::now(); // date used for the cache
+
     // I replaced all of these parts with the f_uri instead
     //std::string                 f_host = std::string();
     //std::int32_t                f_port = -1;
@@ -111,16 +127,20 @@ private:
     uri                         f_uri = uri();
 
     ed::mode_t                  f_mode = ed::mode_t::MODE_PLAIN;
+    time_t                      f_sent_date = time_t();
     std::string                 f_agent_name = std::string("edhttp/" EDHTTP_VERSION_STRING);
     std::string                 f_method = std::string();
     header_t                    f_headers = header_t();
     header_t                    f_post = header_t();
     std::string                 f_body = std::string();
     std::vector<attachment_t>   f_attachments = std::vector<attachment_t>();  // not used yet (Also look in a way that allows us to avoid an extra copy)
+    std::shared_ptr<http_response>
+                                f_response_to_revalidate = std::shared_ptr<http_response>();
     bool                        f_has_body = false;
     bool                        f_has_data = false;
     bool                        f_has_post = false;
     bool                        f_has_attachment = false; // not used yet
+    bool                        f_readonly = false;
     callback_manager_t          f_response_callbacks = callback_manager_t();
 };
 

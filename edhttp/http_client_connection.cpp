@@ -196,12 +196,31 @@ void http_client_connection::set_maximum_header_size(std::size_t max)
 }
 
 
+bool http_client_connection::get_use_cache() const
+{
+    return f_impl->get_use_cache();
+}
+
+
+void http_client_connection::set_use_cache(bool use_cache)
+{
+    f_impl->set_use_cache(use_cache);
+}
+
+
 /** \brief Send a request to an HTTP server.
  *
- * This functions sends an HTTP request to a server. The response will
- * be sent to you through a callback.
+ * This functions sends an HTTP request to a server. The response is
+ * sent to you through a callback or via the process_response() function
+ * which you can reimplement.
  *
  * The request can be sent using HTTP/1.1, HTTP/2, or HTTP/3.
+ *
+ * \warning
+ * The request is NOT duplicated. It may be saved in the cache for a
+ * very long period of time. You must view it as ownership transfer
+ * from you to the http_client_connection and edhttp library in general.
+ * i.e. do not modify it after it was sent with a call to this function.
  *
  * \param[in] request  The request to send to the HTTP server.
  *
@@ -210,22 +229,45 @@ void http_client_connection::set_maximum_header_size(std::size_t max)
  */
 bool http_client_connection::send_request(http_request::pointer_t request)
 {
+    request->mark_as_readonly();
     return f_impl->send_request(request);
 }
 
 
-void http_client_connection::process_response(http_response::pointer_t response)
+bool http_client_connection::process_response(http_response::pointer_t response)
 {
     snapdev::NOT_USED(response);
+
+    return true;
 }
 
 
+/** \brief Lets you know that a connection was successful.
+ *
+ * \todo
+ * This function is useful to know that a connection happened, but really
+ * at this point you do not have much information since it just sends you
+ * a basic ed::connection object without a domain name or a reference to
+ * the request you sent.
+ */
 void http_client_connection::process_connected(ed::connection::pointer_t c)
 {
     snapdev::NOT_USED(c);
 }
 
 
+/** \brief Lets you know that a connection was lost.
+ *
+ * This call happens if a connection did not happen. If you are trying to
+ * send a request to a server and the connect() to that server does not
+ * make it then this function gets called.
+ *
+ * \todo
+ * This function is useful to know that a connection was lost, but really
+ * at this point you do not have much information since it just sends you
+ * a basic ed::connection object without a domain name or a reference to
+ * the request you sent.
+ */
 void http_client_connection::process_connection_failed(ed::connection::pointer_t c)
 {
     snapdev::NOT_USED(c);

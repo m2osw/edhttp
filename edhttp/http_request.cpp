@@ -67,6 +67,18 @@ namespace edhttp
 
 
 
+snapdev::timespec_ex const & http_request::get_request_created_date() const
+{
+    return f_request_date;
+}
+
+
+time_t http_request::get_request_sent_date() const
+{
+    return f_sent_date;
+}
+
+
 ed::mode_t http_request::get_mode() const
 {
     return f_mode;
@@ -167,6 +179,32 @@ std::string http_request::get_host() const
 }
 
 
+/** \brief In HTTP/1.1 we need to send the Host: ... header.
+ *
+ * The value of the `Host: ...` header should never be defined by the caller
+ * but instead defined by us using this function. The host must be followed
+ * by the port if using an unconventional port such as 8080 or 8443.
+ *
+ * \note
+ * For HTTP/2 and HTTP/3, this is the `:authority` pseudo header.
+ *
+ * \return The host as necessary for the HTTP/1.1 `Host: ...` header.
+ */
+std::string http_request::get_host_header() const
+{
+    std::string host(f_uri.full_domain());
+
+    int const port(f_uri.get_port());
+    if(scheme_to_port(f_uri.scheme()) != port)
+    {
+        host += ':';
+        host += std::to_string(port);
+    }
+
+    return host;
+}
+
+
 //bool http_request::unique_port() const
 //{
 //    int port(-1);
@@ -196,6 +234,77 @@ int http_request::get_port() const
     //}
 
     //return f_address_ranges[0].get_from().get_port();
+}
+
+
+/** \brief The Origin header should be used on a fetch() and equivalent.
+ *
+ * Build a valid origin header for a request that needs CORS, such as
+ * a fetch() or a POST.
+ *
+ * Also the header should be set to "null" when there is a cross site
+ * redirect:
+ *
+ * \li User opens site-a.com
+ * \li User clicks `\<a href="https://site-b.com">` on site-a.com
+ *     -- header is omitted
+ * \li site-a.com runs `fetch("https://site-b.com")` or submits a POST form
+ *     -- use `Origin: https://site-a.com` (the value this function returns).
+ * \li site-b.com redirects (`Location: ...`) to another path on
+ *     https://site-b.com; keep `Origin: https://site-a.com`
+ * \li site-b.com redirects (`Location: ...`) to a different site:
+ *     https://site-c.com; downgrade with `Origin: null`
+ *
+ * So you need to know what is happening to know whether to:
+ *
+ * \li add an `Origin: ...` header or not; and
+ * \li call this function or use `null`
+ *
+ * \note
+ * If you want to use `null` and avoid possible misspelling, calling the
+ * function with \p null_origin set to true will give you the exact value.
+ *
+ * \param[in] null_origin  Return the 'null' origin if true otherwise compute
+ * the full origin from the URI defined in the request.
+ *
+ * \return The origin based on the request URI.
+ */
+std::string http_request::get_origin_header(bool null_origin) const
+{
+    if(null_origin)
+    {
+        return g_name_edhttp_param_null;
+    }
+
+    // the URI for the Origin: ... header
+    //
+    std::string origin;
+
+    std::string const scheme(f_uri.scheme());
+    origin += f_uri.scheme();
+    origin += "://";
+
+    origin += f_uri.domain();
+
+    // for LAN domain names and IP addresses, there may not be a TLD
+    //
+    std::string const tld(f_uri.top_level_domain());
+    if(!tld.empty())
+    {
+        origin += '.';
+        origin += tld;
+    }
+
+    // only include port if not the default
+    //
+    int const port(f_uri.get_port());
+    if(scheme_to_port(scheme) != port)
+    {
+        origin += ':';
+        origin += std::to_string(port);
+    }
+
+    return origin;
 }
 
 
@@ -297,7 +406,7 @@ std::string http_request::get_request(bool keep_alive) const
         request << (f_method.empty() ? g_name_edhttp_method_post : f_method.c_str())
                 << ' ' << get_path() << ' ' << g_name_edhttp_http_1_1 << "\r\n";
 
-        throw logic_error("http_client_server.cpp:get_request(): attachments not supported yet");
+        throw not_implemented("http_client_server.cpp:get_request(): attachments not supported yet");
     }
     else if(f_has_post)
     {
@@ -341,7 +450,7 @@ std::string http_request::get_request(bool keep_alive) const
 
     // place Host first because some servers are that stupid
     //
-    request << g_name_edhttp_field_host << ": " << get_host() << "\r\n";
+    request << g_name_edhttp_field_host << ": " << get_host_header() << "\r\n";
 
     bool found_user_agent(false);
     for(auto it(f_headers.begin()); it != f_headers.end(); ++it)
@@ -438,6 +547,8 @@ std::string http_request::get_request(bool keep_alive) const
  */
 void http_request::set_mode(ed::mode_t mode)
 {
+    verify_mutable();
+
     f_mode = mode;
 }
 
@@ -479,6 +590,8 @@ void http_request::set_mode(ed::mode_t mode)
  */
 void http_request::set_uri(std::string const & request_uri)
 {
+    verify_mutable();
+
     uri u;
     u.set_uri(request_uri, true, true);
     set_uri(u);
@@ -487,12 +600,16 @@ void http_request::set_uri(std::string const & request_uri)
 
 void http_request::set_uri(uri const & request_uri)
 {
+    verify_mutable();
+
     f_uri = request_uri;
 }
 
 
 void http_request::set_host(std::string const & host)
 {
+    verify_mutable();
+
     f_uri.set_domain(host);
 
     //int port(get_port());
@@ -527,6 +644,8 @@ void http_request::set_host(std::string const & host)
  */
 void http_request::set_port(int port)
 {
+    verify_mutable();
+
     f_uri.set_port(port);
 
     //for(auto & r : f_address_ranges)
@@ -545,6 +664,8 @@ void http_request::set_port(int port)
 
 void http_request::set_agent_name(std::string const & agent_name)
 {
+    verify_mutable();
+
     // we expect a possibly full agent string with versions, etc.
     // the very first word must be a valid HTTP token
     //
@@ -559,12 +680,16 @@ void http_request::set_agent_name(std::string const & agent_name)
 
 void http_request::set_method(std::string const & method)
 {
+    verify_mutable();
+
     f_method = method;
 }
 
 
 void http_request::set_path(std::string const & path)
 {
+    verify_mutable();
+
     // force a set by making the path an absolute path
     // (a double "/" is safe here)
     //
@@ -602,6 +727,8 @@ void http_request::set_path(std::string const & path)
  */
 void http_request::set_header(std::string name, std::string const & value)
 {
+    verify_mutable();
+
     // TODO: for known names, verify that the value is compatible/valid
     // TODO: verify the value in various other ways
 
@@ -638,6 +765,8 @@ void http_request::set_header(std::string name, std::string const & value)
 
 void http_request::set_post(std::string const & name, std::string const & value)
 {
+    verify_mutable();
+
     if(f_has_body || f_has_data)
     {
         throw logic_error("you cannot use set_body(), set_data(), and set_post() on the same http_request object");
@@ -652,6 +781,8 @@ void http_request::set_post(std::string const & name, std::string const & value)
 
 void http_request::set_basic_auth(std::string const & username, std::string const & secret)
 {
+    verify_mutable();
+
     std::string const authorization_token(username + ":" + secret);
     std::string base64;
     snapdev::base64::encode(authorization_token, base64);
@@ -664,6 +795,8 @@ void http_request::set_basic_auth(std::string const & username, std::string cons
 
 void http_request::set_data(std::string const & data)
 {
+    verify_mutable();
+
     if(f_has_post || f_has_body)
     {
         throw logic_error("you cannot use set_post(), set_data(), and set_body() on the same http_request object");
@@ -677,14 +810,52 @@ void http_request::set_data(std::string const & data)
 
 void http_request::set_body(std::string const & body)
 {
+    verify_mutable();
+
     if(f_has_post || f_has_data)
     {
-        throw logic_error("you cannot use set_post(), set_data(), and set_body() on the same http_request object");
+        throw logic_error("you cannot use set_post(), set_data(), and set_body() on the same http_request object.");
     }
 
     f_body = body;
 
     f_has_body = true;
+}
+
+
+void http_request::set_response_to_revalidate(std::shared_ptr<http_response> response)
+{
+    f_response_to_revalidate = response;
+}
+
+
+std::shared_ptr<http_response> http_request::get_response_to_revalidate() const
+{
+    return f_response_to_revalidate;
+}
+
+
+void http_request::mark_as_readonly()
+{
+    f_readonly = true;
+}
+
+
+void http_request::mark_as_sent()
+{
+    if(f_sent_date == time_t())
+    {
+        f_sent_date = time(nullptr);
+    }
+}
+
+
+void http_request::verify_mutable() const
+{
+    if(f_readonly)
+    {
+        throw logic_error("this http_request was marked as read-only (probably because you call a send_request() function).");
+    }
 }
 
 

@@ -46,7 +46,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 {
     CATCH_START_SECTION("parametrized_value_list: verify object, except parts")
     {
-        edhttp::parametrized_value_list locale("en");
+        edhttp::parametrized_value_list locale("en", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // no error occurred
         //
@@ -58,6 +58,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // get_level() with correct and wrong names
         //
+std::cerr << "--- level = [" << locale.get_level("en") << "/" << edhttp::parametrized_value::DEFAULT_LEVEL() << "]\n";
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("en"), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("fr"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
 
@@ -69,7 +70,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: verify parts")
     {
-        edhttp::parametrized_value_list locale("en");
+        edhttp::parametrized_value_list locale("en", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // make sure the result is 1 part
         //
@@ -83,7 +84,8 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the part is correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "en");
+        CATCH_REQUIRE(p[0].get_name() == ""); // no name, the language is directly a value
+        CATCH_REQUIRE(p[0].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         std::int64_t i(123);
@@ -95,7 +97,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: verify weights top functions")
     {
-        edhttp::parametrized_value_list locale("en-US,en;q=0.8,fr-FR;q= 0.5,fr;q =0.3", true);
+        edhttp::parametrized_value_list locale("en-US,en;q=0.8,fr-FR;q= 0.5,fr;q =0.3", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 //std::cerr << "--- errors? \"" << locale.error_messages() << "\"...\n";
 
         // no error occurred
@@ -121,7 +123,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: verify weight parts")
     {
-        edhttp::parametrized_value_list locale("en-US,en;q=\"0.8\",fr-FR;q=0.5,fr;q=0.3");
+        edhttp::parametrized_value_list locale("en-US,en;q=\"0.8\",fr-FR;q=0.5,fr;q=0.3", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // make sure the result is 4 parts
         //
@@ -135,42 +137,50 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "en-US");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "en-US");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         CATCH_REQUIRE(p[0].to_string() == "en-US");
 
-        CATCH_REQUIRE(p[1].get_name() == "en");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[1].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[1].get_level(), 0.8f));
         CATCH_REQUIRE(p[1].get_parameter("test") == "");
         CATCH_REQUIRE(p[1].to_string() == "en; q=0.8");
 
-        CATCH_REQUIRE(p[2].get_name() == "fr-FR");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[2].get_value() == "fr-FR");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[2].get_level(), 0.5f));
         CATCH_REQUIRE(p[2].get_parameter("test") == "");
         CATCH_REQUIRE(p[2].to_string() == "fr-FR; q=0.5");
 
-        CATCH_REQUIRE(p[3].get_name() == "fr");
+        CATCH_REQUIRE(p[3].get_name() == "");
+        CATCH_REQUIRE(p[3].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[3].get_level(), 0.3f));
         CATCH_REQUIRE(p[3].get_parameter("test") == "");
         CATCH_REQUIRE(p[3].to_string() == "fr; q=0.3");
 
-        CATCH_REQUIRE(pc[0].get_name() == "en-US");
+        CATCH_REQUIRE(pc[0].get_name() == "");
+        CATCH_REQUIRE(pc[0].get_value() == "en-US");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[0].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(pc[0].get_parameter("test") == "");
         CATCH_REQUIRE(pc[0].to_string() == "en-US");
 
-        CATCH_REQUIRE(pc[1].get_name() == "en");
+        CATCH_REQUIRE(pc[1].get_name() == "");
+        CATCH_REQUIRE(pc[1].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[1].get_level(), 0.8f));
         CATCH_REQUIRE(pc[1].get_parameter("test") == "");
         CATCH_REQUIRE(pc[1].to_string() == "en; q=0.8");
 
-        CATCH_REQUIRE(pc[2].get_name() == "fr-FR");
+        CATCH_REQUIRE(pc[2].get_name() == "");
+        CATCH_REQUIRE(pc[2].get_value() == "fr-FR");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[2].get_level(), 0.5f));
         CATCH_REQUIRE(pc[2].get_parameter("test") == "");
         CATCH_REQUIRE(pc[2].to_string() == "fr-FR; q=0.5");
 
-        CATCH_REQUIRE(pc[3].get_name() == "fr");
+        CATCH_REQUIRE(pc[3].get_name() == "");
+        CATCH_REQUIRE(pc[3].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[3].get_level(), 0.3f));
         CATCH_REQUIRE(pc[3].get_parameter("test") == "");
         CATCH_REQUIRE(pc[3].to_string() == "fr; q=0.3");
@@ -179,7 +189,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: sort has no effect if weights are equal")
     {
-        edhttp::parametrized_value_list locale("en-US,en;q=0.8, fr-FR ; q = \"0.5\" ,fr;q=0.3");
+        edhttp::parametrized_value_list locale("en-US,en;q=0.8, fr-FR ; q = \"0.5\" ,fr;q=0.3", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         locale.sort_by_level();
 
@@ -190,16 +200,20 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "en-US");
-        CATCH_REQUIRE(p[1].get_name() == "en");
-        CATCH_REQUIRE(p[2].get_name() == "fr-FR");
-        CATCH_REQUIRE(p[3].get_name() == "fr");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[3].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "en-US");
+        CATCH_REQUIRE(p[1].get_value() == "en");
+        CATCH_REQUIRE(p[2].get_value() == "fr-FR");
+        CATCH_REQUIRE(p[3].get_value() == "fr");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("parametrized_value_list: verify object")
     {
-        edhttp::parametrized_value_list locale("de, en, fr");
+        edhttp::parametrized_value_list locale("de, en, fr", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // no error occurred
         //
@@ -224,7 +238,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: verify part")
     {
-        edhttp::parametrized_value_list locale("de, en, fr");
+        edhttp::parametrized_value_list locale("de, en, fr", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // make sure the result is 3 parts
         //
@@ -238,32 +252,38 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "de");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "de");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         CATCH_REQUIRE(p[0].to_string() == "de");
 
-        CATCH_REQUIRE(p[1].get_name() == "en");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[1].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[1].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[1].get_parameter("test") == "");
         CATCH_REQUIRE(p[1].to_string() == "en");
 
-        CATCH_REQUIRE(p[2].get_name() == "fr");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[2].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[2].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[2].get_parameter("test") == "");
         CATCH_REQUIRE(p[2].to_string() == "fr");
 
-        CATCH_REQUIRE(pc[0].get_name() == "de");
+        CATCH_REQUIRE(pc[0].get_name() == "");
+        CATCH_REQUIRE(pc[0].get_value() == "de");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[0].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(pc[0].get_parameter("test") == "");
         CATCH_REQUIRE(pc[0].to_string() == "de");
 
-        CATCH_REQUIRE(pc[1].get_name() == "en");
+        CATCH_REQUIRE(pc[1].get_name() == "");
+        CATCH_REQUIRE(pc[1].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[1].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(pc[1].get_parameter("test") == "");
         CATCH_REQUIRE(pc[1].to_string() == "en");
 
-        CATCH_REQUIRE(pc[2].get_name() == "fr");
+        CATCH_REQUIRE(pc[2].get_name() == "");
+        CATCH_REQUIRE(pc[2].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[2].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(pc[2].get_parameter("test") == "");
         CATCH_REQUIRE(pc[2].to_string() == "fr");
@@ -272,7 +292,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: sort has no effect if weights are equal")
     {
-        edhttp::parametrized_value_list locale("de, en, fr");
+        edhttp::parametrized_value_list locale("de, en, fr", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         locale.sort_by_level();
 
@@ -283,15 +303,18 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "de");
-        CATCH_REQUIRE(p[1].get_name() == "en");
-        CATCH_REQUIRE(p[2].get_name() == "fr");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "de");
+        CATCH_REQUIRE(p[1].get_value() == "en");
+        CATCH_REQUIRE(p[2].get_value() == "fr");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("parametrized_value_list: verify object")
     {
-        edhttp::parametrized_value_list locale("fr, za, en");
+        edhttp::parametrized_value_list locale("fr, za, en", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // no error occurred
         //
@@ -316,7 +339,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: verify part")
     {
-        edhttp::parametrized_value_list locale("fr, za, en");
+        edhttp::parametrized_value_list locale("fr, za, en", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // make sure the result is 3 parts
         //
@@ -330,32 +353,38 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "fr");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         CATCH_REQUIRE(p[0].to_string() == "fr");
 
-        CATCH_REQUIRE(p[1].get_name() == "za");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[1].get_value() == "za");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[1].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[1].get_parameter("test") == "");
         CATCH_REQUIRE(p[1].to_string() == "za");
 
-        CATCH_REQUIRE(p[2].get_name() == "en");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[2].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[2].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[2].get_parameter("test") == "");
         CATCH_REQUIRE(p[2].to_string() == "en");
 
-        CATCH_REQUIRE(pc[0].get_name() == "fr");
+        CATCH_REQUIRE(pc[0].get_name() == "");
+        CATCH_REQUIRE(pc[0].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[0].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(pc[0].get_parameter("test") == "");
         CATCH_REQUIRE(pc[0].to_string() == "fr");
 
-        CATCH_REQUIRE(pc[1].get_name() == "za");
+        CATCH_REQUIRE(pc[1].get_name() == "");
+        CATCH_REQUIRE(pc[1].get_value() == "za");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[1].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(pc[1].get_parameter("test") == "");
         CATCH_REQUIRE(pc[1].to_string() == "za");
 
-        CATCH_REQUIRE(pc[2].get_name() == "en");
+        CATCH_REQUIRE(pc[2].get_name() == "");
+        CATCH_REQUIRE(pc[2].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[2].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(pc[2].get_parameter("test") == "");
         CATCH_REQUIRE(pc[2].to_string() == "en");
@@ -364,7 +393,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: sort has no effect if weights are equal")
     {
-        edhttp::parametrized_value_list locale("fr, za, en");
+        edhttp::parametrized_value_list locale("fr, za, en", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         locale.sort_by_level();
 
@@ -375,15 +404,18 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "fr");
-        CATCH_REQUIRE(p[1].get_name() == "za");
-        CATCH_REQUIRE(p[2].get_name() == "en");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "fr");
+        CATCH_REQUIRE(p[1].get_value() == "za");
+        CATCH_REQUIRE(p[2].get_value() == "en");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("parametrized_value_list: verify object")
     {
-        edhttp::parametrized_value_list locale("fr;q=0, za; q=0.6,en; q=0.4");
+        edhttp::parametrized_value_list locale("fr;q=0, za; q=0.6,en; q=0.4", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // no error occurred
         //
@@ -408,7 +440,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: verify part after copy in non-const and in const")
     {
-        edhttp::parametrized_value_list locale("fr;q=0, za; q=0.6,en; q=0.4");
+        edhttp::parametrized_value_list locale("fr;q=0, za; q=0.6,en; q=0.4", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // make sure the result is 3 parts
         //
@@ -422,32 +454,38 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "fr");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), 0.0f));
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         CATCH_REQUIRE(p[0].to_string() == "fr; q=0");
 
-        CATCH_REQUIRE(p[1].get_name() == "za");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[1].get_value() == "za");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[1].get_level(), 0.6f));
         CATCH_REQUIRE(p[1].get_parameter("test") == "");
         CATCH_REQUIRE(p[1].to_string() == "za; q=0.6");
 
-        CATCH_REQUIRE(p[2].get_name() == "en");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[2].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[2].get_level(), 0.4f));
         CATCH_REQUIRE(p[2].get_parameter("test") == "");
         CATCH_REQUIRE(p[2].to_string() == "en; q=0.4");
 
-        CATCH_REQUIRE(pc[0].get_name() == "fr");
+        CATCH_REQUIRE(pc[0].get_name() == "");
+        CATCH_REQUIRE(pc[0].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[0].get_level(), 0.0f));
         CATCH_REQUIRE(pc[0].get_parameter("test") == "");
         CATCH_REQUIRE(pc[0].to_string() == "fr; q=0");
 
-        CATCH_REQUIRE(pc[1].get_name() == "za");
+        CATCH_REQUIRE(pc[1].get_name() == "");
+        CATCH_REQUIRE(pc[1].get_value() == "za");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[1].get_level(), 0.6f));
         CATCH_REQUIRE(pc[1].get_parameter("test") == "");
         CATCH_REQUIRE(pc[1].to_string() == "za; q=0.6");
 
-        CATCH_REQUIRE(pc[2].get_name() == "en");
+        CATCH_REQUIRE(pc[2].get_name() == "");
+        CATCH_REQUIRE(pc[2].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[2].get_level(), 0.4f));
         CATCH_REQUIRE(pc[2].get_parameter("test") == "");
         CATCH_REQUIRE(pc[2].to_string() == "en; q=0.4");
@@ -456,7 +494,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: sort by level (weight)")
     {
-        edhttp::parametrized_value_list locale("fr;q=0, za; q=0.6,en; q=0.4");
+        edhttp::parametrized_value_list locale("fr;q=0, za; q=0.6,en; q=0.4", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         locale.sort_by_level();
 
@@ -468,9 +506,12 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
         // now verify that the parts are sorted by level
         //    "fr; q=0, za; q=0.6, en; q=0.4"
         //
-        CATCH_REQUIRE(p[0].get_name() == "za");
-        CATCH_REQUIRE(p[1].get_name() == "en");
-        CATCH_REQUIRE(p[2].get_name() == "fr");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "za");
+        CATCH_REQUIRE(p[1].get_value() == "en");
+        CATCH_REQUIRE(p[2].get_value() == "fr");
 
         // convert back to a string in the new order and with spaces
         //
@@ -480,7 +521,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: verify object")
     {
-        edhttp::parametrized_value_list locale("  fr;  q=0,  za;  q=0.6,  en;  q=0.4  ");
+        edhttp::parametrized_value_list locale("  fr;  q=0,  za;  q=0.6,  en;  q=0.4  ", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // no error occurred
         //
@@ -505,7 +546,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: verify part")
     {
-        edhttp::parametrized_value_list locale("  fr;  q=0,  za;  q=0.6,  en;  q=0.4  ");
+        edhttp::parametrized_value_list locale("  fr;  q=0,  za;  q=0.6,  en;  q=0.4  ", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // make sure the result is 3 parts
         //
@@ -519,32 +560,38 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "fr");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), 0.0f));
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         CATCH_REQUIRE(p[0].to_string() == "fr; q=0");
 
-        CATCH_REQUIRE(p[1].get_name() == "za");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[1].get_value() == "za");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[1].get_level(), 0.6f));
         CATCH_REQUIRE(p[1].get_parameter("test") == "");
         CATCH_REQUIRE(p[1].to_string() == "za; q=0.6");
 
-        CATCH_REQUIRE(p[2].get_name() == "en");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[2].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[2].get_level(), 0.4f));
         CATCH_REQUIRE(p[2].get_parameter("test") == "");
         CATCH_REQUIRE(p[2].to_string() == "en; q=0.4");
 
-        CATCH_REQUIRE(pc[0].get_name() == "fr");
+        CATCH_REQUIRE(pc[0].get_name() == "");
+        CATCH_REQUIRE(pc[0].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[0].get_level(), 0.0f));
         CATCH_REQUIRE(pc[0].get_parameter("test") == "");
         CATCH_REQUIRE(pc[0].to_string() == "fr; q=0");
 
-        CATCH_REQUIRE(pc[1].get_name() == "za");
+        CATCH_REQUIRE(pc[1].get_name() == "");
+        CATCH_REQUIRE(pc[1].get_value() == "za");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[1].get_level(), 0.6f));
         CATCH_REQUIRE(pc[1].get_parameter("test") == "");
         CATCH_REQUIRE(pc[1].to_string() == "za; q=0.6");
 
-        CATCH_REQUIRE(pc[2].get_name() == "en");
+        CATCH_REQUIRE(pc[2].get_name() == "");
+        CATCH_REQUIRE(pc[2].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[2].get_level(), 0.4f));
         CATCH_REQUIRE(pc[2].get_parameter("test") == "");
         CATCH_REQUIRE(pc[2].to_string() == "en; q=0.4");
@@ -553,7 +600,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: sort by level (weight)")
     {
-        edhttp::parametrized_value_list locale("  fr;  q=0,  za;  q=0.6,  en;  q=0.4  ");
+        edhttp::parametrized_value_list locale("  fr;  q=0,  za;  q=0.6,  en;  q=0.4  ", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         locale.sort_by_level();
 
@@ -564,15 +611,18 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are sorted by level
         //
-        CATCH_REQUIRE(p[0].get_name() == "za");
-        CATCH_REQUIRE(p[1].get_name() == "en");
-        CATCH_REQUIRE(p[2].get_name() == "fr");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "za");
+        CATCH_REQUIRE(p[1].get_value() == "en");
+        CATCH_REQUIRE(p[2].get_value() == "fr");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("parametrized_value_list: verify object")
     {
-        edhttp::parametrized_value_list locale("  fr;  q=0,  za,  en;  q=0.4  ,es;q=1.0");
+        edhttp::parametrized_value_list locale("  fr;  q=0,  za,  en;  q=0.4  ,es;q=1.0", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // no error occurred
         //
@@ -598,7 +648,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: verify part")
     {
-        edhttp::parametrized_value_list locale("  fr;  q=0,  za,  en;  q=0.4  ,es;q=1.0");
+        edhttp::parametrized_value_list locale("  fr;  q=0,  za,  en;  q=0.4  ,es;q=1.0", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // make sure the result is 3 parts
         //
@@ -612,42 +662,50 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "fr");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), 0.0f));
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         CATCH_REQUIRE(p[0].to_string() == "fr; q=0");
 
-        CATCH_REQUIRE(p[1].get_name() == "za");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[1].get_value() == "za");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[1].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[1].get_parameter("test") == "");
         CATCH_REQUIRE(p[1].to_string() == "za");
 
-        CATCH_REQUIRE(p[2].get_name() == "en");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[2].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[2].get_level(), 0.4f));
         CATCH_REQUIRE(p[2].get_parameter("test") == "");
         CATCH_REQUIRE(p[2].to_string() == "en; q=0.4");
 
-        CATCH_REQUIRE(p[3].get_name() == "es");
+        CATCH_REQUIRE(p[3].get_name() == "");
+        CATCH_REQUIRE(p[3].get_value() == "es");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[3].get_level(), 1.0f));
         CATCH_REQUIRE(p[3].get_parameter("test") == "");
         CATCH_REQUIRE(p[3].to_string() == "es; q=1.0");
 
-        CATCH_REQUIRE(pc[0].get_name() == "fr");
+        CATCH_REQUIRE(pc[0].get_name() == "");
+        CATCH_REQUIRE(pc[0].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[0].get_level(), 0.0f));
         CATCH_REQUIRE(pc[0].get_parameter("test") == "");
         CATCH_REQUIRE(pc[0].to_string() == "fr; q=0");
 
-        CATCH_REQUIRE(pc[1].get_name() == "za");
+        CATCH_REQUIRE(pc[1].get_name() == "");
+        CATCH_REQUIRE(pc[1].get_value() == "za");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[1].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(pc[1].get_parameter("test") == "");
         CATCH_REQUIRE(pc[1].to_string() == "za");
 
-        CATCH_REQUIRE(pc[2].get_name() == "en");
+        CATCH_REQUIRE(pc[2].get_name() == "");
+        CATCH_REQUIRE(pc[2].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(pc[2].get_level(), 0.4f));
         CATCH_REQUIRE(pc[2].get_parameter("test") == "");
         CATCH_REQUIRE(pc[2].to_string() == "en; q=0.4");
 
-        CATCH_REQUIRE(p[3].get_name() == "es");
+        CATCH_REQUIRE(p[3].get_name() == "");
+        CATCH_REQUIRE(p[3].get_value() == "es");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[3].get_level(), 1.0f));
         CATCH_REQUIRE(p[3].get_parameter("test") == "");
         CATCH_REQUIRE(p[3].to_string() == "es; q=1.0");
@@ -656,7 +714,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: sort by level (weight)")
     {
-        edhttp::parametrized_value_list locale("  fr;  q=0,  za,  en;  q=0.4  ,es;q=1.0");
+        edhttp::parametrized_value_list locale("  fr;  q=0,  za,  en;  q=0.4  ,es;q=1.0", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         locale.sort_by_level();
 
@@ -667,16 +725,20 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are sorted by level
         //
-        CATCH_REQUIRE(p[0].get_name() == "za");
-        CATCH_REQUIRE(p[1].get_name() == "es");
-        CATCH_REQUIRE(p[2].get_name() == "en");
-        CATCH_REQUIRE(p[3].get_name() == "fr");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[3].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "za");
+        CATCH_REQUIRE(p[1].get_value() == "es");
+        CATCH_REQUIRE(p[2].get_value() == "en");
+        CATCH_REQUIRE(p[3].get_value() == "fr");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("parametrized_value_list: verify object")
     {
-        edhttp::parametrized_value_list locale("de");
+        edhttp::parametrized_value_list locale("de", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // no error occurred
         //
@@ -704,7 +766,8 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "de");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "de");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         CATCH_REQUIRE(p[0].to_string() == "de");
@@ -713,7 +776,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: add \"en\"")
     {
-        edhttp::parametrized_value_list locale("de");
+        edhttp::parametrized_value_list locale("de", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // the parse is expected to work (return true)
         //
@@ -745,12 +808,14 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "de");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "de");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         CATCH_REQUIRE(p[0].to_string() == "de");
 
-        CATCH_REQUIRE(p[1].get_name() == "en");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[1].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[1].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[1].get_parameter("test") == "");
         CATCH_REQUIRE(p[1].to_string() == "en");
@@ -759,7 +824,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: add \"en\" and then \"fr\"")
     {
-        edhttp::parametrized_value_list locale("de");
+        edhttp::parametrized_value_list locale("de", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // the parse is expected to work (return true)
         //
@@ -792,17 +857,20 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "de");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "de");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         CATCH_REQUIRE(p[0].to_string() == "de");
 
-        CATCH_REQUIRE(p[1].get_name() == "en");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[1].get_value() == "en");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[1].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[1].get_parameter("test") == "");
         CATCH_REQUIRE(p[1].to_string() == "en");
 
-        CATCH_REQUIRE(p[2].get_name() == "fr");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[2].get_value() == "fr");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[2].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[2].get_parameter("test") == "");
         CATCH_REQUIRE(p[2].to_string() == "fr");
@@ -811,11 +879,11 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: replace with \"mo\"")
     {
-        edhttp::parametrized_value_list locale("de");
+        edhttp::parametrized_value_list locale("de", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // the parser is expected to work (return true)
         //
-        CATCH_REQUIRE(locale.parse("  mo  ", true, true));
+        CATCH_REQUIRE(locale.parse("  mo  ", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE));
 
         // no error occurred
         //
@@ -843,7 +911,8 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "mo");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "mo");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         CATCH_REQUIRE(p[0].to_string() == "mo");
@@ -852,48 +921,49 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: set parameters with a value")
     {
-        edhttp::parametrized_value_list locale("de=123");
-        CATCH_REQUIRE(locale.error_messages().empty());
-        CATCH_REQUIRE(locale.get_string() == "de=123");
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("mo"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("en"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("de"), edhttp::parametrized_value::DEFAULT_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("es"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(locale.to_string() == "de=123");
+        edhttp::parametrized_value_list list("de=123", edhttp::PARAMETRIZED_VALUE_MODE_STRICT_PARAMETRIZED_VALUE_LIST);
+        CATCH_REQUIRE(list.error_messages().empty());
+        CATCH_REQUIRE(list.get_string() == "de=123");
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("mo"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("en"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("de"), edhttp::parametrized_value::DEFAULT_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("es"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(list.to_string() == "de=123");
 
-        bool reset(locale.parse("  mo  =  \"555\"  ", false, true));
+        bool reset(list.parse("  mo  =  \"555\"  ", true));
+std::cerr << "--- message: [" << list.error_messages() << "]\n";
         CATCH_REQUIRE(reset);
-        CATCH_REQUIRE(locale.error_messages().empty());
-        CATCH_REQUIRE(locale.get_string() == "  mo  =  \"555\"  ");
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("mo"), edhttp::parametrized_value::DEFAULT_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("en"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("de"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("es"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(locale.to_string() == "mo=555");
+        CATCH_REQUIRE(list.error_messages().empty());
+        CATCH_REQUIRE(list.get_string() == "  mo  =  \"555\"  ");
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("mo"), edhttp::parametrized_value::DEFAULT_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("en"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("de"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("es"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(list.to_string() == "mo=555");
 
-        CATCH_REQUIRE(locale.parse("  en  =  \"  555  \"  ", false, true));
-        CATCH_REQUIRE(locale.error_messages().empty());
-        CATCH_REQUIRE(locale.get_string() == "  en  =  \"  555  \"  ");
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("mo"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("en"), edhttp::parametrized_value::DEFAULT_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("de"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("es"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(locale.to_string() == "en=\"  555  \"");
+        CATCH_REQUIRE(list.parse("  en  =  \"  555  \"  ", true));
+        CATCH_REQUIRE(list.error_messages().empty());
+        CATCH_REQUIRE(list.get_string() == "  en  =  \"  555  \"  ");
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("mo"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("en"), edhttp::parametrized_value::DEFAULT_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("de"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("es"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(list.to_string() == "en=\"  555  \"");
 
-        CATCH_REQUIRE(locale.parse("  es  =  555  ", false, true));
-        CATCH_REQUIRE(locale.error_messages().empty());
-        CATCH_REQUIRE(locale.get_string() == "  es  =  555  ");
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("mo"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("en"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("de"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
-        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("es"), edhttp::parametrized_value::DEFAULT_LEVEL()));
-        CATCH_REQUIRE(locale.to_string() == "es=555");
+        CATCH_REQUIRE(list.parse("  es  =  555  ", true));
+        CATCH_REQUIRE(list.error_messages().empty());
+        CATCH_REQUIRE(list.get_string() == "  es  =  555  ");
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("mo"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("en"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("de"), edhttp::parametrized_value::UNDEFINED_LEVEL()));
+        CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(list.get_level("es"), edhttp::parametrized_value::DEFAULT_LEVEL()));
+        CATCH_REQUIRE(list.to_string() == "es=555");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("parametrized_value_list: verify multiple parts")
     {
-        edhttp::parametrized_value_list locale("fr;q=0;r=3.2;z=fancy, za; q = 0.6 ; h = \"angry\" ; object = \"color of the wand\",en; f=0.4");
+        edhttp::parametrized_value_list locale("fr;q=0;r=3.2;z=fancy, za; q = 0.6 ; h = \"angry\" ; object = \"color of the wand\",en; f=0.4", edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // make sure the result is 3 parts
         //
@@ -902,7 +972,8 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
         // now verify that the parts are correct
         //
-        CATCH_REQUIRE(p[0].get_name() == "fr");
+        CATCH_REQUIRE(p[0].get_name() == "");
+        CATCH_REQUIRE(p[0].get_value() == "fr");
         CATCH_REQUIRE(p[0].get_parameter("test") == "");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[0].get_level(), 0.0f));
         CATCH_REQUIRE(p[0].get_parameter("r") == "3.2");
@@ -914,14 +985,16 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(d, -1.0));
         CATCH_REQUIRE(p[0].to_string() == "fr; q=0; r=3.2; z=fancy");
 
-        CATCH_REQUIRE(p[1].get_name() == "za");
+        CATCH_REQUIRE(p[1].get_name() == "");
+        CATCH_REQUIRE(p[1].get_value() == "za");
         CATCH_REQUIRE(p[1].get_parameter("test") == "");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[1].get_level(), 0.6f));
         CATCH_REQUIRE(p[1].get_parameter("h") == "angry");
         CATCH_REQUIRE(p[1].get_parameter("object") == "color of the wand");
         CATCH_REQUIRE(p[1].to_string() == "za; h=angry; object=\"color of the wand\"; q=0.6");
 
-        CATCH_REQUIRE(p[2].get_name() == "en");
+        CATCH_REQUIRE(p[2].get_name() == "");
+        CATCH_REQUIRE(p[2].get_value() == "en");
         CATCH_REQUIRE(p[2].get_parameter("test") == "");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[2].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[2].get_parameter("f") == "0.4");
@@ -931,11 +1004,11 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: verify other quotation requirements")
     {
-        edhttp::parametrized_value_list locale("fr=francais;q=0;r=3.2;z=\"c'est necessaire\",,, za=\"South Africa\"; q = 0.6 ; h = \"angry\" ; object = \"color of the wand\",en; f=0.4; cute=\"girls \\\"are\\\" dancing\"");
+        edhttp::parametrized_value_list strict("fr=francais;q=0;r=3.2;z=\"c'est necessaire\",,, za=\"South Africa\"; q = 0.6 ; h = \"angry\" ; object = \"color of the wand\",en; f=0.4; cute=\"girls \\\"are\\\" dancing\"", edhttp::PARAMETRIZED_VALUE_MODE_STRICT_PARAMETRIZED_VALUE_LIST);
 
         // make sure the result is 3 parts
         //
-        edhttp::parametrized_value::vector_t & p(locale.get_parts());
+        edhttp::parametrized_value::vector_t & p(strict.get_parts());
         CATCH_REQUIRE(p.size() == 3);
 
         double d(-1.0);
@@ -965,6 +1038,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
         CATCH_REQUIRE(p[1].to_string() == "za=\"South Africa\"; h=angry; object=\"color of the wand\"; q=0.6");
 
         CATCH_REQUIRE(p[2].get_name() == "en");
+        CATCH_REQUIRE(p[2].get_value() == "");
         CATCH_REQUIRE(p[2].get_parameter("test") == "");
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(p[2].get_level(), edhttp::parametrized_value::DEFAULT_LEVEL()));
         CATCH_REQUIRE(p[2].get_parameter("f") == "0.4");
@@ -983,7 +1057,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: negative quality is not accepted as such (ignored)")
     {
-        edhttp::parametrized_value_list locale;
+        edhttp::parametrized_value_list locale(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         CATCH_REQUIRE(locale.parse("fr-FR;q=-1.0"));
 
@@ -994,7 +1068,7 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
 
     CATCH_START_SECTION("parametrized_value_list: quality must be a valid floating point (ignored)")
     {
-        edhttp::parametrized_value_list locale;
+        edhttp::parametrized_value_list locale(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         CATCH_REQUIRE(locale.parse("fr-FR;q=joke"));
 
@@ -1002,6 +1076,10 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
         CATCH_REQUIRE(SNAP_CATCH2_NAMESPACE::nearly_equal(locale.get_level("fr-FR"), edhttp::parametrized_value::DEFAULT_LEVEL()));
 
         edhttp::parametrized_value * p(locale.get_part("fr-FR"));
+        CATCH_REQUIRE(p == nullptr);
+
+        p = locale.get_part_by_value("fr-FR");
+        CATCH_REQUIRE(p != nullptr);
         std::int64_t value(-1);
         CATCH_REQUIRE(p->has_parameter("q"));
         CATCH_REQUIRE(p->get_parameter("q") == "joke");
@@ -1009,6 +1087,9 @@ CATCH_TEST_CASE("parametrized_value_list", "[string]")
         CATCH_REQUIRE(value == -1);
 
         p = locale.get_part("en-AU");
+        CATCH_REQUIRE(p == nullptr);
+
+        p = locale.get_part_by_value("en-AU");
         CATCH_REQUIRE(p == nullptr);
     }
     CATCH_END_SECTION()
@@ -1091,17 +1172,32 @@ CATCH_TEST_CASE("invalid_parametrized_value_list", "[invalid][string]")
 
     CATCH_START_SECTION("invalid_parametrized_value_list: spurious data")
     {
-        edhttp::parametrized_value_list locale;
+        edhttp::parametrized_value_list locale(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         CATCH_REQUIRE_FALSE(locale.parse("fr-FR;joke=\"it is\" not", true));
 
-        CATCH_REQUIRE(locale.error_messages() == "item's parameters must be separated by semicolon.\n");
+        CATCH_REQUIRE(locale.error_messages() == "item's parameters must be separated by a semicolon.\n");
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("invalid_parametrized_value_list: expect name to be followed by '='")
+    {
+        edhttp::parametrized_value_list locale(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_STRICT_PARAMETRIZED_VALUE_LIST);
+
+        // TODO: the space should not be require to get the error?
+        //       except that the `|` character is allowed in tokens
+        //
+        CATCH_REQUIRE_FALSE(locale.parse("fr-FR|"));
+        CATCH_REQUIRE(locale.error_messages() == "the bare item name was expected to be followed by an equal sign (=) and a value.\n");
+
+        CATCH_REQUIRE_FALSE(locale.parse("fr-FR |"));
+        CATCH_REQUIRE(locale.error_messages() == "the bare item name was expected to be followed by an equal sign (=) and a value.\n");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("invalid_parametrized_value_list: expected value separator (,) or EOS")
     {
-        edhttp::parametrized_value_list locale;
+        edhttp::parametrized_value_list locale(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_LANGUAGE);
 
         // TODO: the space should not be require to get the error?
         //       except that the `|` character is allowed in tokens
@@ -1109,79 +1205,77 @@ CATCH_TEST_CASE("invalid_parametrized_value_list", "[invalid][string]")
         //CATCH_REQUIRE_FALSE(locale.parse("fr-FR|"));
         //CATCH_REQUIRE(locale.error_messages() == "item not ended properly.\n");
 
-        CATCH_REQUIRE_FALSE(locale.parse("fr-FR |"));
-        CATCH_REQUIRE(locale.error_messages() == "item not ended properly.\n");
+        CATCH_REQUIRE_FALSE(locale.parse("fr-FR\x1f"));
+        CATCH_REQUIRE(locale.error_messages() == "invalid character in value.\n");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("invalid_parametrized_value_list: missing closing quote")
     {
-        edhttp::parametrized_value_list locale;
+        edhttp::parametrized_value_list alt_svc(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_STRICT_ALT_SVC);
 
-        CATCH_REQUIRE_FALSE(locale.parse("h3=\":443"));
+        CATCH_REQUIRE_FALSE(alt_svc.parse("h3=\":443"));
 
-        CATCH_REQUIRE(locale.error_messages() == "closing quote missing.\n");
+        CATCH_REQUIRE(alt_svc.error_messages() == "closing quote missing.\n");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("invalid_parametrized_value_list: quoted string ends with a backslash and not closing quote")
     {
-        edhttp::parametrized_value_list locale;
+        edhttp::parametrized_value_list alt_svc(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_STRICT_ALT_SVC);
 
-        CATCH_REQUIRE_FALSE(locale.parse("h3=\":443\\"));
+        CATCH_REQUIRE_FALSE(alt_svc.parse("h3=\":443\\"));
 
-        CATCH_REQUIRE(locale.error_messages() == "unexpected standalone backslash at the end of a quoted string.\n");
+        CATCH_REQUIRE(alt_svc.error_messages() == "unexpected standalone backslash at the end of a quoted string.\n");
+    }
+    CATCH_END_SECTION()
+
+    CATCH_START_SECTION("invalid_parametrized_value_list: '?' not allowed in bare item name")
+    {
+        edhttp::parametrized_value_list alt_svc(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_STRICT_ALT_SVC);
+
+        CATCH_REQUIRE_FALSE(alt_svc.parse("h3?=\":443\""));
+
+        CATCH_REQUIRE(alt_svc.error_messages() == "a parameter name must be a valid HTTP token.\n"
+                        "unexpected token, skipping to next item.\n");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("invalid_parametrized_value_list: quoted string ends with a backslash and not closing quote")
     {
-        edhttp::parametrized_value_list locale;
+        edhttp::parametrized_value_list alt_svc(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_STRICT_ALT_SVC);
 
-        CATCH_REQUIRE_FALSE(locale.parse("h3?=\":443\""));
+        CATCH_REQUIRE_FALSE(alt_svc.parse("\":443\""));
 
-        CATCH_REQUIRE(locale.error_messages() == "a parameter name must be a valid HTTP token.\n"
-                                                 "unexpected token, skipping to next item.\n");
-    }
-    CATCH_END_SECTION()
-
-    CATCH_START_SECTION("invalid_parametrized_value_list: quoted string ends with a backslash and not closing quote")
-    {
-        edhttp::parametrized_value_list locale;
-
-        CATCH_REQUIRE_FALSE(locale.parse("\":443\""));
-
-        CATCH_REQUIRE(locale.error_messages() == "unexpected token, skipping to next item.\n");
+        CATCH_REQUIRE(alt_svc.error_messages() == "unexpected token, skipping to next item.\n");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("invalid_parametrized_value_list: invalid / unexpected tokens")
     {
-        edhttp::parametrized_value_list locale;
+        edhttp::parametrized_value_list alt_svc(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_STRICT_ALT_SVC);
 
-        CATCH_REQUIRE_FALSE(locale.parse("h3 = [token]"));
-        CATCH_REQUIRE(locale.error_messages() == "a parameter name must be a valid HTTP token.\n");
+        CATCH_REQUIRE_FALSE(alt_svc.parse("h3 = [token]"));
+        CATCH_REQUIRE(alt_svc.error_messages() == "a parameter name must be a valid HTTP token.\n");
 
-        CATCH_REQUIRE_FALSE(locale.parse("h3 = ; missing = value"));
-        CATCH_REQUIRE(locale.error_messages() == "unexpected token (59) after the = sign.\n"
-                                                 "unexpected token, skipping to next item.\n");
+        CATCH_REQUIRE_FALSE(alt_svc.parse("h3 = ; missing = value"));
+        CATCH_REQUIRE(alt_svc.error_messages() == "unexpected token (59) after the = sign of the bare item.\n");
 
-        CATCH_REQUIRE_FALSE(locale.parse("h3 = 123; color = [token]"));
-        CATCH_REQUIRE(locale.error_messages() == "a parameter name must be a valid HTTP token.\n"
+        CATCH_REQUIRE_FALSE(alt_svc.parse("h3 = 123; color = [token]"));
+        CATCH_REQUIRE(alt_svc.error_messages() == "a parameter name must be a valid HTTP token.\n"
                                                  "unexpected token after the = sign to assign a parameter's value.\n");
 
-        CATCH_REQUIRE_FALSE(locale.parse("h3 = 123;; color = blue"));
-        CATCH_REQUIRE(locale.error_messages() == "unexpected token in an item list of parameters.\n"
-                                                 "unexpected token, skipping to next item.\n");
+        CATCH_REQUIRE_FALSE(alt_svc.parse("h3 = 123;; color = blue"));
+        CATCH_REQUIRE(alt_svc.error_messages() == "unexpected token in an item list of parameters.\n");
 
-        CATCH_REQUIRE_FALSE(locale.parse("h3 = 123; color += 0x550022"));
-        CATCH_REQUIRE(locale.error_messages() == "item parameter \"color\" must be assigned a value.\n");
+        CATCH_REQUIRE_FALSE(alt_svc.parse("h3 = 123; color += 0x550022"));
+        CATCH_REQUIRE(alt_svc.error_messages() == "item parameter \"color\" must be assigned a value.\n");
     }
     CATCH_END_SECTION()
 
     CATCH_START_SECTION("invalid_parametrized_value_list: quoted string with obs-text characters")
     {
-        edhttp::parametrized_value_list locale;
+        edhttp::parametrized_value_list alt_svc(std::string(), edhttp::PARAMETRIZED_VALUE_MODE_STRICT_ALT_SVC);
 
         for(int i(0x01); i <= 0x1F; ++i)
         {
@@ -1192,18 +1286,18 @@ CATCH_TEST_CASE("invalid_parametrized_value_list", "[invalid][string]")
             std::string header("h3=\"example.com:44");
             header += static_cast<char>(i);
             header += '"';
-            CATCH_REQUIRE_FALSE(locale.parse(header));
+            CATCH_REQUIRE_FALSE(alt_svc.parse(header));
 
-            CATCH_REQUIRE(locale.error_messages() == "invalid character in quoted string.\n");
+            CATCH_REQUIRE(alt_svc.error_messages() == "invalid character in quoted string.\n");
         }
 
         {
             std::string header("h3=\"example.com:44");
             header += static_cast<char>(0x7F);
             header += '"';
-            CATCH_REQUIRE_FALSE(locale.parse(header));
+            CATCH_REQUIRE_FALSE(alt_svc.parse(header));
 
-            CATCH_REQUIRE(locale.error_messages() == "invalid character in quoted string.\n");
+            CATCH_REQUIRE(alt_svc.error_messages() == "invalid character in quoted string.\n");
         }
 
         for(int i(0x80); i <= 0xFF; ++i)
@@ -1211,9 +1305,9 @@ CATCH_TEST_CASE("invalid_parametrized_value_list", "[invalid][string]")
             std::string header("h3=\"example.com:44");
             header += static_cast<char>(i);
             header += '"';
-            CATCH_REQUIRE_FALSE(locale.parse(header));
+            CATCH_REQUIRE_FALSE(alt_svc.parse(header));
 
-            CATCH_REQUIRE(locale.error_messages() == "invalid character in quoted string.\n");
+            CATCH_REQUIRE(alt_svc.error_messages() == "invalid character in quoted string.\n");
         }
     }
     CATCH_END_SECTION()

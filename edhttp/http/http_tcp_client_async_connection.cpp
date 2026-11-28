@@ -222,43 +222,6 @@ bool http_tcp_client_async_connection::is_websocket() const
 
 bool http_tcp_client_async_connection::process_response(http_response::pointer_t response)
 {
-    std::string const alt_svc(response->get_header(g_name_edhttp_field_alt_svc));
-    if(!alt_svc.empty())
-    {
-        parametrized_value_list ws;
-        if(ws.parse(alt_svc))
-        {
-            // parsing worked, see if there are h2/h3 definitions
-            //
-            // for now, we completely ignore the "persist=1" possible
-            // parameter since we are not monitoring the network
-            // connection
-            //
-            for(int v(2); v <= 3; ++v)
-            {
-                std::string protocol("h");
-                protocol += std::to_string(v);
-                std::string const key(protocol + ':' + f_parent->get_host());
-                parametrized_value const * p(ws.get_part(key));
-                if(p != nullptr)
-                {
-                    std::int64_t ttl(86400);
-                    if(p->has_parameter("ma"))
-                    {
-                        std::int64_t ma(-1);
-                        if(p->get_parameter_as_integer("ma", ma)
-                        && ma > 0
-                        && ma < 31536000)
-                        {
-                            ttl = ma;
-                        }
-                    }
-                    accepted_protocol(key, ttl);
-                }
-            }
-        }
-    }
-
     return  f_parent->process_response(response);
 }
 

@@ -41,7 +41,7 @@ namespace edhttp
 class http_request;
 
 
-enum class http_protocol_t
+enum class http_protocol_t : std::uint8_t
 {
     HTTP_PROTOCOL_UNKNOWN,
 
@@ -62,6 +62,7 @@ class http_response
 public:
     typedef std::shared_ptr<http_response>              pointer_t;
     typedef std::unordered_map<std::int32_t, pointer_t> map_t; // for HTTP/2 & HTTP/3, the key is the stream identifier
+    typedef std::vector<pointer_t>                      vector_t;
 
     std::shared_ptr<http_request>
                                 get_request() const;
@@ -76,6 +77,9 @@ public:
                                 get_cookies() const;
     buffer_t const &            get_response() const;
     std::string                 get_response_as_string() const;
+    bool                        is_from_cache() const;
+    bool                        need_revalidation(std::shared_ptr<http_request> request, bool as_proxy) const;
+    time_t                      get_date() const;
 
     void                        set_request(std::shared_ptr<http_request> request);
     void                        append_original_header(std::string const & header);
@@ -89,6 +93,8 @@ public:
     void                        append_response(buffer_t const & chunk);
     void                        append_response(std::string const & chunk);
     void                        reserve_response(std::size_t size);
+    void                        mark_as_cached();
+    void                        mark_as_received();
 
     bool                        parse_status_line(std::string const & status_line);
     bool                        parse_header(std::string const & header);
@@ -100,9 +106,11 @@ private:
                                 f_request = std::shared_ptr<http_request>();
     std::string                 f_original_header = std::string();
     http_protocol_t             f_protocol = http_protocol_t::HTTP_PROTOCOL_UNKNOWN;
+    bool                        f_cached = false;
     http_response_code_t        f_response_code = HTTP_RESPONSE_CODE_UNDEFINED;
     std::string                 f_reason_phrase = std::string();
-    header_t                    f_header = header_t();
+    time_t                      f_response_received_date = time_t();
+    header_t                    f_headers = header_t();
     http_cookie::vector_t       f_cookies = http_cookie::vector_t();
     buffer_t                    f_response = buffer_t();
 };

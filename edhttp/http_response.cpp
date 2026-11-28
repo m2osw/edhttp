@@ -21,11 +21,12 @@
 //
 #include    "edhttp/http_response.h"
 
+#include    "edhttp/cache_control.h"
 #include    "edhttp/exception.h"
+#include    "edhttp/http_date.h"
+#include    "edhttp/http_request.h"
 #include    "edhttp/names.h"
 #include    "edhttp/token.h"
-//#include    "edhttp/uri.h"
-//#include    "edhttp/version.h"
 
 
 // snaplogger
@@ -38,9 +39,9 @@
 //#include    <eventdispatcher/exception.h>
 
 
-// libaddr
+// advgetopt
 //
-//#include    <libaddr/addr_parser.h>
+#include    <advgetopt/validator_integer.h>
 
 
 // snapdev
@@ -155,14 +156,14 @@ std::string http_response::get_reason_phrase() const
 
 bool http_response::has_header(token const & name) const
 {
-    return f_header.contains(name);
+    return f_headers.contains(name);
 }
 
 
 std::string http_response::get_header(token const & name) const
 {
-    auto const it(f_header.find(name));
-    if(it == f_header.end())
+    auto const it(f_headers.find(name));
+    if(it == f_headers.end())
     {
         return std::string();
     }
@@ -233,6 +234,158 @@ std::string http_response::get_response_as_string() const
 }
 
 
+bool http_response::is_from_cache() const
+{
+    return f_cached;
+}
+
+
+bool http_response::need_revalidation(http_request::pointer_t request, bool as_proxy) const
+{
+    std::int64_t            max_age(-1);
+    cache_control_settings  cache_control;
+
+    std::string const cache_control_header(get_header(g_name_edhttp_field_cache_control));
+    if(!cache_control_header.empty())
+    {
+        // if private, then proxies cannot cache those anyway
+        //
+        cache_control.set_cache_info(cache_control_header, false);
+        if(as_proxy && cache_control.get_private())
+        {
+            return true;
+        }
+
+        // must revalidate every time?
+        //
+        if(cache_control.get_no_cache())
+        {
+            return true;
+        }
+
+        // expired?
+        //
+        if(as_proxy)
+        {
+            max_age = cache_control.get_s_maxage();
+        }
+        if(max_age == -1)
+        {
+            max_age = cache_control.get_max_age();
+        }
+    }
+
+    time_t const date(get_date());
+    if(max_age == -1)
+    {
+        std::string const expires_header(get_header(g_name_edhttp_field_expires));
+        if(!expires_header.empty())
+        {
+            time_t const expires(string_to_date(expires_header));
+            if(expires > 0
+            && date > 0)
+            {
+                max_age = std::max<time_t>(0, expires - date);
+            }
+        }
+    }
+
+    // no expiration date, use 10% of "now - last-modified" if that
+    // field exists
+    //
+    time_t const now(time(nullptr));
+    if(max_age == -1)
+    {
+        std::string const last_modified_header(get_header(g_name_edhttp_field_last_modified));
+        if(!last_modified_header.empty())
+        {
+            time_t const last_modified(string_to_date(last_modified_header));
+            if(last_modified > 0
+            && last_modified < now)
+            {
+                max_age = std::max<time_t>(0, (date - last_modified) * 10 / 100);
+            }
+        }
+    }
+    if(max_age == -1)
+    {
+        // still no date; use our own default
+        //
+        max_age = cache_control_settings::AGE_MAXIMUM;
+    }
+
+    // the request may accept stale data with a min-fresh header
+    std::int64_t min_fresh(0);
+    {
+        std::string const min_fresh_header(request->get_header(g_name_edhttp_field_min_fresh));
+        if(!min_fresh_header.empty())
+        {
+            snapdev::NOT_USED(advgetopt::validator_integer::convert_string(min_fresh_header, min_fresh));
+        }
+    }
+
+    if(date + max_age <= now)
+    {
+        return false;
+    }
+
+    // must revalidate?
+    //
+    if((as_proxy && cache_control.get_proxy_revalidate())
+    || cache_control.get_must_revalidate())
+    {
+        return true;
+    }
+
+    // if the must-revalidate is not set in the cached response, then we
+    // may be able to serve stale data if allowed by the request
+    {
+        std::string const max_stale_header(request->get_header(g_name_edhttp_field_max_stale));
+        if(!max_stale_header.empty())
+        {
+            std::int64_t max_stale(0);
+            if(advgetopt::validator_integer::convert_string(max_stale_header, max_stale))
+            {
+                if(date + max_age <= now + max_stale)
+                {
+                    return false;
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+
+/** \brief Retrieve the `Date` header.
+ *
+ * This function retrieves the `Date` header and converts it to a time_t
+ * value. The `Date` is marked as a required field for responses returning
+ * a status code between 200 and 499 because those may be cached.
+ *
+ * Still, if a server does not have access to a clock, it is not required
+ * to send a `Date` header. For that reason, we have a fallback which is
+ * the date when the response was received.
+ *
+ * \return The date when this response was built or received.
+ */
+time_t http_response::get_date() const
+{
+    std::string const date_header(get_header(g_name_edhttp_field_date));
+    if(!date_header.empty())
+    {
+        time_t const date(string_to_date(date_header));
+        if(date != -1)
+        {
+            return date;
+        }
+    }
+
+    return f_response_received_date;
+}
+
+
 void http_response::set_request(std::shared_ptr<http_request> request)
 {
     f_request = request;
@@ -289,7 +442,7 @@ void http_response::add_header(token const & name, std::string const & value)
     {
         add_cookie(http_cookie::from_http_header(value));
     }
-    else if(f_header.contains(name))
+    else if(f_headers.contains(name))
     {
         // the following well defined headers cannot be duplicated
         //
@@ -307,12 +460,12 @@ void http_response::add_header(token const & name, std::string const & value)
 
         // otherwise, we can just add to the list of values
         //
-        f_header[name] += ',';
-        f_header[name] += value;
+        f_headers[name] += ',';
+        f_headers[name] += value;
     }
     else
     {
-        f_header[name] = value;
+        f_headers[name] = value;
     }
 }
 
@@ -450,6 +603,32 @@ void http_response::append_response(std::string const & chunk)
 void http_response::reserve_response(std::size_t size)
 {
     f_response.reserve(size);
+}
+
+
+void http_response::mark_as_cached()
+{
+    f_cached = true;
+}
+
+
+/** \brief Mark the response as received.
+ *
+ * Whenever a response is considered received, this function must be
+ * called so that way we can record the date when that happened. This
+ * date may later be used to compute the age of the data and thus
+ * determine whether it has to be considered stale or not.
+ *
+ * Only the first call has an effect. Further call do nothing.
+ *
+ * \sa get_date()
+ */
+void http_response::mark_as_received()
+{
+    if(f_response_received_date == time_t())
+    {
+        f_response_received_date = time(nullptr);
+    }
 }
 
 

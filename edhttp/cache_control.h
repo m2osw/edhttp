@@ -20,6 +20,7 @@
 
 // C++
 //
+#include    <cstdint>
 #include    <set>
 #include    <string>
 
@@ -38,17 +39,19 @@ public:
     // From spec: "HTTP/1.1 servers SHOULD NOT send Expires dates
     //            more than one year in the future."
     //
-    static int64_t const            AGE_MAXIMUM = 365 * 24 * 60 * 60;
-    static int64_t const            IGNORE_VALUE = -1;
+    static std::int64_t const       AGE_MAXIMUM = 365 * 24 * 60 * 60;
+    static std::int64_t const       IGNORE_VALUE = -1;
 
                                     cache_control_settings();
                                     cache_control_settings(std::string const & info, bool const internal_setup);
 
     // general handling
+    //
     void                            reset_cache_info();
     void                            set_cache_info(std::string const & info, bool const internal_setup);
 
     // response only (server)
+    //
     void                            set_must_revalidate(bool const must_revalidate);
     bool                            get_must_revalidate() const;
 
@@ -74,10 +77,11 @@ public:
     tags_t const &                  get_tags() const;
 
     // request and response (client and server)
-    void                            set_max_age(int64_t const max_age);
+    //
+    void                            set_max_age(std::int64_t const max_age);
     void                            set_max_age(std::string const & max_age);
-    void                            update_max_age(int64_t max_age);
-    int64_t                         get_max_age() const;
+    void                            update_max_age(std::int64_t max_age);
+    std::int64_t                    get_max_age() const;
 
     void                            set_no_cache(bool const no_cache);
     bool                            get_no_cache() const;
@@ -88,33 +92,35 @@ public:
     void                            set_no_transform(bool const no_transform);
     bool                            get_no_transform() const;
 
-    void                            set_s_maxage(int64_t const s_maxage);
+    void                            set_s_maxage(std::int64_t const s_maxage);
     void                            set_s_maxage(std::string const & s_maxage);
-    void                            update_s_maxage(int64_t s_maxage);
-    int64_t                         get_s_maxage() const;
+    void                            update_s_maxage(std::int64_t s_maxage);
+    std::int64_t                    get_s_maxage() const;
 
     // request only (client)
-    void                            set_max_stale(int64_t const max_stale);
+    //
+    void                            set_max_stale(std::int64_t const max_stale);
     void                            set_max_stale(std::string const & max_stale);
-    int64_t                         get_max_stale() const;
+    std::int64_t                    get_max_stale() const;
 
-    void                            set_min_fresh(int64_t const min_fresh);
+    void                            set_min_fresh(std::int64_t const min_fresh);
     void                            set_min_fresh(std::string const & min_fresh);
-    int64_t                         get_min_fresh() const;
+    std::int64_t                    get_min_fresh() const;
 
     void                            set_only_if_cached(bool const only_if_cached);
     bool                            get_only_if_cached() const;
 
     // utility functions
-    static int64_t                  string_to_seconds(std::string const & max_age);
-    static int64_t                  minimum(int64_t const a, int64_t const b);
+    //
+    static std::int64_t             string_to_seconds(std::string const & max_age);
+    static std::int64_t             minimum(std::int64_t const a, std::int64_t const b);
 
 private:
     // in alphabetical order
     bool                            f_immutable = false;
-    int64_t                         f_max_age = 0;
-    int64_t                         f_max_stale = IGNORE_VALUE;
-    int64_t                         f_min_fresh = IGNORE_VALUE;
+    std::int64_t                    f_max_age = 0;
+    std::int64_t                    f_max_stale = IGNORE_VALUE;
+    std::int64_t                    f_min_fresh = IGNORE_VALUE;
     bool                            f_must_revalidate = true;
     bool                            f_no_cache = false;
     bool                            f_no_store = false;
@@ -125,7 +131,7 @@ private:
     bool                            f_proxy_revalidate = false;
     bool                            f_public = false;
     fields_t                        f_revalidate_field_names = fields_t();
-    int64_t                         f_s_maxage = IGNORE_VALUE;
+    std::int64_t                    f_s_maxage = IGNORE_VALUE;
     tags_t                          f_tags = tags_t();
 };
 

@@ -18,8 +18,10 @@
 
 // self
 //
-#include    "edhttp/http/http_client_connection_impl.h"
+#include    <edhttp/http/http_client_connection_impl.h>
 
+#include    <edhttp/http_cache.h>
+#include    <edhttp/parametrized_value_list.h>
 
 
 // snaplogger
@@ -148,6 +150,18 @@ void http_client_connection_impl::set_maximum_header_size(std::size_t maximum_he
 }
 
 
+bool http_client_connection_impl::get_use_cache() const
+{
+    return f_use_cache;
+}
+
+
+void http_client_connection_impl::set_use_cache(bool use_cache)
+{
+    f_use_cache = use_cache;
+}
+
+
 http_udp_connection::pointer_t http_client_connection_impl::get_udp_ipv4_connection()
 {
     if(f_udp_ipv4_connection == nullptr)
@@ -196,12 +210,26 @@ void http_client_connection_impl::process_connection_failed(ed::connection::poin
 
 bool http_client_connection_impl::send_request(http_request::pointer_t request)
 {
+    http_response::pointer_t response;
+    if(f_use_cache)
+    {
+        response = cache::get(request);
+        if(response != nullptr)
+        {
+            if(!response->need_revalidation(request, false))
+            {
+                process_response(response);
+                return true; // in this case you can always send more!
+            }
+            request->set_response_to_revalidate(response);
+        }
+    }
+
     std::string const host(request->get_host());
 
     http_domain::pointer_t d{};
 
     // if there is already a valid connection to that host, use it
-    //
     {
         auto const it(f_domains.find(host));
         if(it != f_domains.end())
@@ -249,7 +277,58 @@ bool http_client_connection_impl::send_request(http_request::pointer_t request)
 bool http_client_connection_impl::process_response(http_response::pointer_t response)
 {
     http_request::pointer_t request(response->get_request());
-    return request->process_response(response);
+
+    bool const response_is_from_cache(response->is_from_cache());
+    if(!response_is_from_cache)
+    {
+        std::string const alt_svc(response->get_header(g_name_edhttp_field_alt_svc));
+        if(!alt_svc.empty())
+        {
+            parametrized_value_list ws;
+            if(ws.parse(alt_svc))
+            {
+                // parsing worked, see if there are h2/h3 definitions
+                //
+                // for now, we completely ignore the "persist=1" possible
+                // parameter since we are not monitoring the network
+                // connection
+                //
+                for(int v(2); v <= 3; ++v)
+                {
+                    std::string protocol("h");
+                    protocol += std::to_string(v);
+                    std::string const key(protocol + ':' + request->get_host());
+                    parametrized_value const * p(ws.get_part(key));
+                    if(p != nullptr)
+                    {
+                        std::int64_t ttl(86400);
+                        if(p->has_parameter("ma"))
+                        {
+                            std::int64_t ma(-1);
+                            if(p->get_parameter_as_integer("ma", ma))
+                            {
+                                ttl = std::clamp<std::int64_t>(ma, 0, 31536000);
+                            }
+                        }
+                        accepted_protocol(key, ttl);
+                    }
+                }
+            }
+        }
+    }
+
+    bool result(request->process_response(response));
+    result = result && f_parent->process_response(response);
+
+    if(!response_is_from_cache)
+    {
+        // this may have the side effect of invalidating if the method
+        // is not GET or HEAD
+        //
+        cache::set(response);
+    }
+
+    return result;
 }
 
 

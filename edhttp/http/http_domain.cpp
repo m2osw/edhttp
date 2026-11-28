@@ -23,6 +23,7 @@
 #include    "exception.h"
 #include    "http/http_client_connection_impl.h"
 #include    "http/http_tcp_client_async_connection.h"
+#include    "http_cache.h"
 #include    "utils.h"
 
 
@@ -185,6 +186,12 @@ std::string const & http_domain::get_host() const
  */
 bool http_domain::send_request(http_request::pointer_t request)
 {
+    http_response::pointer_t response(cache::get(request));
+    if(response != nullptr)
+    {
+        return true;
+    }
+
     // if we are dealing with an HTTP/1.x version then we need to make sure
     // to send one request at a time; this is handled by the connection but
     // we receive requests even before the connection is established so
@@ -295,6 +302,7 @@ void http_domain::process_connection_failed(ed::connection::pointer_t c)
 
 bool http_domain::process_response(http_response::pointer_t response)
 {
+    response->mark_as_received();
     return f_parent->process_response(response);
 }
 

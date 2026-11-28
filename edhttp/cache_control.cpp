@@ -32,6 +32,7 @@
 
 // snapdev
 //
+#include    <snapdev/compare_switch_string.h>
 #include    <snapdev/trim_string.h>
 
 
@@ -138,12 +139,12 @@ void cache_control_settings::reset_cache_info()
  */
 void cache_control_settings::set_cache_info(std::string const & info, bool const internal_setup)
 {
-    // TODO: we want the weighted HTTP strings to understand
+    // TODO: we want the parametrized_value_list to understand
     //       parameters with values assigned and more than the
     //       q=xxx then we can update this code to better test
     //       what we are dealing with...
 
-    // parse the data with the weighted HTTP string implementation
+    // parse the data with parametrized_value_list
     //
     parametrized_value_list client_cache_control(info);
 
@@ -180,18 +181,18 @@ void cache_control_settings::set_cache_info(std::string const & info, bool const
         switch(name[0])
         {
         case 'i':
-            if(name == g_name_edhttp_part_immutable)
+            if(snapdev::compare_upper_exact_switch_string<"IMMUTABLE">(name))
             {
                 set_immutable(!negate);
             }
             break;
 
         case 'm':
-            if(name == g_name_edhttp_part_max_age)
+            if(snapdev::compare_upper_exact_switch_string<"MAX-AGE">(name))
             {
                 set_max_age(c.get_value());
             }
-            else if(name == "max-stale")
+            else if(snapdev::compare_upper_exact_switch_string<"MAX-STALE">(name))
             {
                 std::string const & value(c.get_value());
                 if(value.empty())
@@ -205,18 +206,18 @@ void cache_control_settings::set_cache_info(std::string const & info, bool const
                     set_max_stale(value);
                 }
             }
-            else if(name == "min-fresh")
+            else if(snapdev::compare_upper_exact_switch_string<"MIN-FRESH">(name))
             {
                 set_min_fresh(c.get_value());
             }
-            else if(name == "must-revalidate")
+            else if(snapdev::compare_upper_exact_switch_string<"MUST-REVALIDATE">(name))
             {
                 set_must_revalidate(!negate);
             }
             break;
 
         case 'n':
-            if(name == "no-cache")
+            if(snapdev::compare_upper_exact_switch_string<"NO-CACHE">(name))
             {
                 std::string const & value(c.get_value());
                 if(value.empty())
@@ -235,25 +236,25 @@ void cache_control_settings::set_cache_info(std::string const & info, bool const
                     }
                 }
             }
-            else if(name == "no-store")
+            else if(snapdev::compare_upper_exact_switch_string<"NO-STORE">(name))
             {
                 set_no_store(!negate);
             }
-            else if(name == "no-transform")
+            else if(snapdev::compare_upper_exact_switch_string<"NO-TRANSFORM">(name))
             {
                 set_no_transform(!negate);
             }
             break;
 
         case 'o':
-            if(name == "only-if-cached")
+            if(snapdev::compare_upper_exact_switch_string<"ONLY-IF_CACHED">(name))
             {
                 set_only_if_cached(!negate);
             }
             break;
 
         case 'p':
-            if(name == "private")
+            if(snapdev::compare_upper_exact_switch_string<"PRIVATE">(name))
             {
                 std::string const & value(c.get_value());
                 if(value.empty())
@@ -272,18 +273,18 @@ void cache_control_settings::set_cache_info(std::string const & info, bool const
                     }
                 }
             }
-            else if(name == "proxy-revalidate")
+            else if(snapdev::compare_upper_exact_switch_string<"PROXY-REVALIDATE">(name))
             {
                 set_proxy_revalidate(!negate);
             }
-            else if(name == "public")
+            else if(snapdev::compare_upper_exact_switch_string<"PUBLIC">(name))
             {
                 set_public(!negate);
             }
             break;
 
         case 's':
-            if(name == "s-maxage")
+            if(snapdev::compare_upper_exact_switch_string<"S-MAXPAGE">(name))
             {
                 set_s_maxage(c.get_value());
             }
@@ -725,11 +726,12 @@ cache_control_settings::tags_t const & cache_control_settings::get_tags() const
  * \sa update_max_age()
  * \sa get_max_age()
  */
-void cache_control_settings::set_max_age(int64_t const max_age)
+void cache_control_settings::set_max_age(std::int64_t const max_age)
 {
     if(max_age >= AGE_MAXIMUM)
     {
         // 1 year in seconds
+        //
         f_max_age = AGE_MAXIMUM;
     }
     else if(max_age < 0)
@@ -770,7 +772,7 @@ void cache_control_settings::set_max_age(std::string const & max_age)
 /** \brief Update the maximum number of seconds to cache this data.
  *
  * This function keeps the smaller 'max-age' of the existing setup and
- * the new value specified to this function.
+ * the new \p max_age value.
  *
  * Note that if the current value is IGNORE_VALUE, then the new maximum
  * is automatically used, whatever it is.
@@ -783,7 +785,7 @@ void cache_control_settings::set_max_age(std::string const & max_age)
  * \sa set_max_age()
  * \sa get_max_age()
  */
-void cache_control_settings::update_max_age(int64_t max_age)
+void cache_control_settings::update_max_age(std::int64_t max_age)
 {
     if(max_age > AGE_MAXIMUM)
     {
@@ -815,7 +817,7 @@ void cache_control_settings::update_max_age(int64_t max_age)
  * \sa update_max_age()
  * \sa get_max_age()
  */
-int64_t cache_control_settings::get_max_age() const
+std::int64_t cache_control_settings::get_max_age() const
 {
     return f_max_age;
 }

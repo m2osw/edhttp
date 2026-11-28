@@ -104,8 +104,8 @@ void accepted_protocol(std::string const & domain, magpie::duration_t ttl)
     if(g_accepted_protocols_cache == nullptr)
     {
         magpie::options opts;
-        opts.set_default_ttl(86400);
-        opts.set_cleanup_interval(3600);
+        opts.set_default_ttl(86'400);
+        opts.set_cleanup_interval(3'600);
         opts.set_count_limit(1'000);
         g_accepted_protocols_cache = std::make_shared<magpie::cache<std::string, magpie::empty_t>>(opts);
     }

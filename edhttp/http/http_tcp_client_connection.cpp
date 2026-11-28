@@ -1097,6 +1097,30 @@ std::cerr << "--- sending H1 request?\n";
 
     f_h1_response = response;
 
+    http_response::pointer_t revalidate_response(request->get_response_to_revalidate());
+    if(revalidate_response != nullptr)
+    {
+        std::string const etag_header(revalidate_response->get_header(g_name_edhttp_field_etag));
+        if(!etag_header.empty())
+        {
+            request->set_header(g_name_edhttp_field_if_none_match, etag_header);
+        }
+
+        std::string const last_modified(revalidate_response->get_header(g_name_edhttp_field_last_modified));
+        if(!last_modified.empty())
+        {
+            request->set_header(g_name_edhttp_field_if_modified_since, last_modified);
+        }
+        else
+        {
+            std::string const date(revalidate_response->get_header(g_name_edhttp_field_date));
+            if(!date.empty())
+            {
+                request->set_header(g_name_edhttp_field_if_modified_since, date);
+            }
+        }
+    }
+
     std::string const data(request->get_request(true));
 std::cerr << "--- sending HTTP/1.1 request to socket: [" << data << "] (" << data.length() << " bytes) at " << snapdev::now() << "\n";
     write(data.data(), data.length());
@@ -1148,7 +1172,7 @@ void http_tcp_client_connection::send_h2_request(
 
     // this is the replacement for the Host: ... in HTTP/1.1
     //
-    std::string const authority(request->get_host());
+    std::string const authority(request->get_host_header());
     headers.emplace_back(
           const_cast<std::uint8_t *>(reinterpret_cast<uint8_t const *>(g_name_edhttp_field_h2_authority))
         , const_cast<std::uint8_t *>(reinterpret_cast<uint8_t const *>(authority.c_str()))

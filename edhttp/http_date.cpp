@@ -58,10 +58,10 @@ namespace
 
 char const * g_week_day_name[] =
 {
-    "Sunday", "Monday", "Tuesday", "Wedneday", "Thursday", "Friday", "Saturday"
+    "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 };
 
-int const g_week_day_length[] = { 6, 6, 7, 8, 8, 6, 8 }; // strlen() of g_week_day_name's
+int const g_week_day_length[] = { 6, 6, 7, 9, 8, 6, 8 }; // strlen() of g_week_day_name's
 
 char const * g_month_name[] =
 {
@@ -104,8 +104,10 @@ signed char const g_timezone_adjust[26] =
 };
 
 
-}
-// noname namespace
+
+} // no name namespace
+
+
 
 /** \brief Convert a time/date value to a string.
  *

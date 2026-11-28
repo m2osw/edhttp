@@ -527,7 +527,6 @@ bool uri::set_uri(
     advgetopt::string_list_t uri_path;
     if(*u != '\0')
     {
-std::cerr << "--- u path + [" << u << "]\n";
         // skip the '/' if present
         //
         if(*u == '/')
@@ -1587,7 +1586,7 @@ std::string uri::full_domain() const
  *
  * \return The top level domain name of the URI.
  */
-std::string const& uri::top_level_domain() const
+std::string const & uri::top_level_domain() const
 {
     return f_top_level_domain;
 }

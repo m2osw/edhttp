@@ -62,6 +62,8 @@ public:
     void                            set_maximum_connection_attempts(connection_count_t max);
     std::size_t                     get_maximum_header_size() const;
     void                            set_maximum_header_size(std::size_t maximum_header_size);
+    bool                            get_use_cache() const;
+    void                            set_use_cache(bool use_cache = true);
 
     http_udp_connection::pointer_t  get_udp_ipv4_connection();
     http_udp_connection::pointer_t  get_udp_ipv6_connection();
@@ -75,6 +77,7 @@ private:
     http_client_connection *        f_parent = nullptr;
     ed::communicator::pointer_t     f_communicator = ed::communicator::pointer_t();
     bool                            f_keep_alive = true;
+    bool                            f_use_cache = true;
     allowed_http_protocol_t         f_allowed_http_protocols = ALLOWED_HTTP_ALL;
     connection_count_t              f_maximum_connection_attempts = MAXIMUM_CONNECTION_ATTEMPTS_DEFAULT;
     std::size_t                     f_maximum_header_size = MAXIMUM_HEADER_SIZE;

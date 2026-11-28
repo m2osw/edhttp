@@ -47,9 +47,10 @@ public:
 
     static level_t constexpr    UNDEFINED_LEVEL() { return -1.0f; }
 
-                                parametrized_value(std::string const & name);
+                                //parametrized_value(std::string const & name);
 
     std::string const &         get_name() const;
+    void                        set_name(std::string const & name);
     std::string const &         get_value() const;  // in case the first name has a "name=value" part
     void                        set_value(std::string const & value);
     level_t                     get_level() const;
